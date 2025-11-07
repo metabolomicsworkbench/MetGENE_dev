@@ -6,14 +6,12 @@
 <option value="Amniotic fluid">Amniotic fluid</option>
 <option value="Anther">Anther</option>
 <option value="Aortic valve tissue">Aortic valve tissue</option>
-<option value="Apricot Fruit">Apricot Fruit</option>
 <option value="Arteries">Arteries</option>
 <option value="Astrocyte cells">Astrocyte cells</option>
 <option value="Atria">Atria</option>
 <option value="Back of Eye">Back of Eye</option>
 <option value="Bacterial cells">Bacterial cells</option>
 <option value="Bacterial media">Bacterial media</option>
-<option value="Bacterial outer membrane vesicles">Bacterial outer membrane vesicles</option>
 <option value="BAT">BAT</option>
 <option value="B-cells">B-cells</option>
 <option value="Bee heads">Bee heads</option>
@@ -37,7 +35,6 @@
 <option value="Breast tissue">Breast tissue</option>
 <option value="Breath">Breath</option>
 <option value="Brown adipose">Brown adipose</option>
-<option value="Cancer ascites">Cancer ascites</option>
 <option value="Cancer cells">Cancer cells</option>
 <option value="Capsicum Chinense">Capsicum Chinense</option>
 <option value="Cardiomyocyte cells">Cardiomyocyte cells</option>
@@ -52,9 +49,9 @@
 <option value="Colon">Colon</option>
 <option value="Colonic mucosa">Colonic mucosa</option>
 <option value="Colorectal Cancer Cells">Colorectal Cancer Cells</option>
-<option value="Colorectal Tissue">Colorectal Tissue</option>
 <option value="Corpus Luteum">Corpus Luteum</option>
 <option value="Cortex">Cortex</option>
+<option value="CSF">CSF</option>
 <option value="Cultured cells">Cultured cells</option>
 <option value="Culture media">Culture media</option>
 <option value="Cyst fluid">Cyst fluid</option>
@@ -73,12 +70,9 @@
 <option value="Epithelial lining fluid">Epithelial lining fluid</option>
 <option value="Erythrocytes">Erythrocytes</option>
 <option value="Esophagus">Esophagus</option>
-<option value="Extracellular vescicles">Extracellular vescicles</option>
-<option value="Eye">Eye</option>
 <option value="Eye tissue">Eye tissue</option>
 <option value="Feces">Feces</option>
 <option value="Fibroblast cells">Fibroblast cells</option>
-<option value="Fin">Fin</option>
 <option value="Fish larvae">Fish larvae</option>
 <option value="Flushing">Flushing</option>
 <option value="Fly">Fly</option>
@@ -95,6 +89,7 @@
 <option value="Glioma cells">Glioma cells</option>
 <option value="gWAT">gWAT</option>
 <option value="Head">Head</option>
+<option value="Head tissue">Head tissue</option>
 <option value="Heart">Heart</option>
 <option value="HEK cells">HEK cells</option>
 <option value="HeLa cells">HeLa cells</option>
@@ -103,8 +98,6 @@
 <option value="Hepatopancreas">Hepatopancreas</option>
 <option value="Hep G2 cells">Hep G2 cells</option>
 <option value="Hippocampus">Hippocampus</option>
-<option value="Holobiont">Holobiont</option>
-<option value="Honey">Honey</option>
 <option value="Human tissue">Human tissue</option>
 <option value="Hypothalamus">Hypothalamus</option>
 <option value="Ileum">Ileum</option>
@@ -118,6 +111,7 @@
 <option value="Jejunum">Jejunum</option>
 <option value="Keratinocytes">Keratinocytes</option>
 <option value="Kidney">Kidney</option>
+<option value="Kidney tissue">Kidney tissue</option>
 <option value="Larvae">Larvae</option>
 <option value="Latex">Latex</option>
 <option value="Leaf">Leaf</option>
@@ -159,7 +153,6 @@
 <option value="Ovarian cancer cells">Ovarian cancer cells</option>
 <option value="Ovaries">Ovaries</option>
 <option value="Pancreas">Pancreas</option>
-<option value="Pancreatic Cancer Cells">Pancreatic Cancer Cells</option>
 <option value="Parasite">Parasite</option>
 <option value="Pepper pericarp">Pepper pericarp</option>
 <option value="Peritoneal fluid">Peritoneal fluid</option>
@@ -169,11 +162,9 @@
 <option value="Plankton">Plankton</option>
 <option value="Plant">Plant</option>
 <option value="Plant Leaves and Roots">Plant Leaves and Roots</option>
-<option value="Plant shoots">Plant shoots</option>
 <option value="Plaque samples">Plaque samples</option>
 <option value="Plasmodium cells">Plasmodium cells</option>
 <option value="Pooled sample">Pooled sample</option>
-<option value="Preadipocytes">Preadipocytes</option>
 <option value="Prostate">Prostate</option>
 <option value="Prostate cancer cells">Prostate cancer cells</option>
 <option value="Proximal tubular cells">Proximal tubular cells</option>
@@ -193,7 +184,6 @@
 <option value="Seaweed">Seaweed</option>
 <option value="Seedlings">Seedlings</option>
 <option value="Seeds">Seeds</option>
-<option value="Serum">Serum</option>
 <option value="Shrimp organs">Shrimp organs</option>
 <option value="SI">SI</option>
 <option value="SIHUMIx">SIHUMIx</option>
@@ -214,7 +204,6 @@
 <option value="Stool">Stool</option>
 <option value="Strawberry leaves">Strawberry leaves</option>
 <option value="Subcutaneous fat">Subcutaneous fat</option>
-<option value="Supernatant">Supernatant</option>
 <option value="Suspended Marine Particulate Matter">Suspended Marine Particulate Matter</option>
 <option value="Sweat">Sweat</option>
 <option value="Synthetic">Synthetic</option>

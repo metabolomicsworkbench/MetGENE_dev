@@ -110,9 +110,9 @@
 
 <td><center><select name = "anatomy">
             <option value = "NA" selected>Select anatomy/Sample source</option>
-<?php
+<?php 
 // include 'sample_source_pulldown_menu_phpcode.php' 
-include 'ssdm_sample_source_pulldown_menu_phpcode.php'
+include 'ssdm_sample_source_pulldown_menu_phpcode.php' 
 ?>
 </select></center></td>
 
@@ -161,8 +161,8 @@ include 'ssdm_sample_source_pulldown_menu_phpcode.php'
     <?php echo "<a href=\"https://commonfund.nih.gov/dataecosystem\" target=\"_blank\"><img src=\"".$METGENE_BASE_DIR_NAME."/images/CFDEtransparent.png\" alt=\"logo\" width=\"80\"></a>";?>
 	</td>
 	</tr>
-
 	</table>
+
 
 <table style="width: 100%; border-collapse: collapse;">
   <tr>
@@ -171,6 +171,7 @@ include 'ssdm_sample_source_pulldown_menu_phpcode.php'
     </td>
   </tr>
 </table>
+
 
 </div>
 </div>

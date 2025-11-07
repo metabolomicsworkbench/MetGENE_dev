@@ -835,14 +835,6 @@
       "id_name_for_menu": "Staphylococcus infection (NA), Name in MW: Staphylococcus infection"
     },
     {
-      "disease_name_lc": "trichinellosis",
-      "disease_name": "Trichinellosis",
-      "disease": "DOID:9784",
-      "disease_class": "Infectious disease",
-      "disease_name_correct": "trichinosis",
-      "id_name_for_menu": "trichinosis (DOID:9784), Name in MW: Trichinellosis"
-    },
-    {
       "disease_name_lc": "tuberculosis",
       "disease_name": "Tuberculosis",
       "disease": "DOID:399",
@@ -969,28 +961,12 @@
       "id_name_for_menu": "hypoglycemia (DOID:9993), Name in MW: Hypoglycemia"
     },
     {
-      "disease_name_lc": "insulin resistance",
-      "disease_name": "Insulin Resistance",
-      "disease": "DOID:9352",
-      "disease_class": "Metabolic disorder",
-      "disease_name_correct": "type 2 diabetes mellitus",
-      "id_name_for_menu": "type 2 diabetes mellitus (DOID:9352), Name in MW: Insulin Resistance"
-    },
-    {
-      "disease_name_lc": "maple syrup urinary disease",
-      "disease_name": "Maple syrup urinary disease",
+      "disease_name_lc": "maple syrup urine disease",
+      "disease_name": "Maple Syrup Urine Disease",
       "disease": "DOID:9269",
       "disease_class": "Metabolic disorder",
       "disease_name_correct": "maple syrup urine disease",
-      "id_name_for_menu": "maple syrup urine disease (DOID:9269), Name in MW: Maple syrup urinary disease"
-    },
-    {
-      "disease_name_lc": "metabolic disease",
-      "disease_name": "Metabolic disease",
-      "disease": "DOID:0014667",
-      "disease_class": "Metabolic disorder",
-      "disease_name_correct": "disease of metabolism",
-      "id_name_for_menu": "disease of metabolism (DOID:0014667), Name in MW: Metabolic disease"
+      "id_name_for_menu": "maple syrup urine disease (DOID:9269), Name in MW: Maple Syrup Urine Disease"
     },
     {
       "disease_name_lc": "metabolic syndrome",
@@ -999,14 +975,6 @@
       "disease_class": "Metabolic disorder",
       "disease_name_correct": "abdominal obesity-metabolic syndrome",
       "id_name_for_menu": "abdominal obesity-metabolic syndrome (DOID:0060611), Name in MW: Metabolic syndrome"
-    },
-    {
-      "disease_name_lc": "mitochondrial dysfunction",
-      "disease_name": "Mitochondrial Dysfunction",
-      "disease": "DOID:0070330",
-      "disease_class": "Metabolic disorder",
-      "disease_name_correct": "multiple mitochondrial dysfunctions syndrome",
-      "id_name_for_menu": "multiple mitochondrial dysfunctions syndrome (DOID:0070330), Name in MW: Mitochondrial Dysfunction"
     }
   ],
   "Metabolic disorder/Genetic disorder": [
@@ -1069,12 +1037,12 @@
       "id_name_for_menu": "Duchenne muscular dystrophy (DOID:11723), Name in MW: Duchenne Muscular Dystrophy"
     },
     {
-      "disease_name_lc": "muscle atrophy",
-      "disease_name": "Muscle atrophy",
+      "disease_name_lc": "muscular atrophy",
+      "disease_name": "Muscular atrophy",
       "disease": "DOID:767",
       "disease_class": "Musculoskeletal disorder",
       "disease_name_correct": "muscular atrophy",
-      "id_name_for_menu": "muscular atrophy (DOID:767), Name in MW: Muscle atrophy"
+      "id_name_for_menu": "muscular atrophy (DOID:767), Name in MW: Muscular atrophy"
     },
     {
       "disease_name_lc": "muscular dystrophy",
@@ -1247,14 +1215,6 @@
       "disease_class": "Neurological disorder",
       "disease_name_correct": "Huntington's disease",
       "id_name_for_menu": "Huntington's disease (DOID:12858), Name in MW: Huntingtons disease"
-    },
-    {
-      "disease_name_lc": "mild cognitive impairment",
-      "disease_name": "Mild Cognitive Impairment",
-      "disease": "DOID:0080832",
-      "disease_class": "Neurological disorder",
-      "disease_name_correct": "mild cognitive impairment",
-      "id_name_for_menu": "mild cognitive impairment (DOID:0080832), Name in MW: Mild Cognitive Impairment"
     },
     {
       "disease_name_lc": "multiple sclerosis",
@@ -1439,14 +1399,6 @@
       "id_name_for_menu": "Clubroot disease (NA), Name in MW: Clubroot disease"
     },
     {
-      "disease_name_lc": "cultured cells",
-      "disease_name": "Cultured cells",
-      "disease": null,
-      "disease_class": "Other",
-      "disease_name_correct": "Cultured cells",
-      "id_name_for_menu": "Cultured cells (NA), Name in MW: Cultured cells"
-    },
-    {
       "disease_name_lc": "dental erosion",
       "disease_name": "Dental erosion",
       "disease": null,
@@ -1461,6 +1413,14 @@
       "disease_class": "Other",
       "disease_name_correct": "Dental plaque",
       "id_name_for_menu": "Dental plaque (NA), Name in MW: Dental plaque"
+    },
+    {
+      "disease_name_lc": "diabetes, cardiovascular disease",
+      "disease_name": "Diabetes, Cardiovascular Disease",
+      "disease": "DOID:9351",
+      "disease_class": "Other",
+      "disease_name_correct": "diabetes mellitus",
+      "id_name_for_menu": "diabetes mellitus (DOID:9351), Name in MW: Diabetes, Cardiovascular Disease"
     },
     {
       "disease_name_lc": "dna damage response",
@@ -1511,28 +1471,12 @@
       "id_name_for_menu": "Inflammation (NA), Name in MW: Inflammation"
     },
     {
-      "disease_name_lc": "lipid peroxidation",
-      "disease_name": "Lipid peroxidation",
-      "disease": null,
-      "disease_class": "Other",
-      "disease_name_correct": "Lipid peroxidation",
-      "id_name_for_menu": "Lipid peroxidation (NA), Name in MW: Lipid peroxidation"
-    },
-    {
       "disease_name_lc": "maternal hypoxemia",
       "disease_name": "Maternal Hypoxemia",
       "disease": null,
       "disease_class": "Other",
       "disease_name_correct": "Maternal Hypoxemia",
       "id_name_for_menu": "Maternal Hypoxemia (NA), Name in MW: Maternal Hypoxemia"
-    },
-    {
-      "disease_name_lc": "mouth disease",
-      "disease_name": "Mouth disease",
-      "disease": "DOID:403",
-      "disease_class": "Other",
-      "disease_name_correct": "mouth disease",
-      "id_name_for_menu": "mouth disease (DOID:403), Name in MW: Mouth disease"
     },
     {
       "disease_name_lc": "organ transplantation",
@@ -1597,16 +1541,6 @@
       "disease_class": "Other",
       "disease_name_correct": "Very long acylcarnitine dehydrogenase deficiency",
       "id_name_for_menu": "Very long acylcarnitine dehydrogenase deficiency (NA), Name in MW: Very long acylcarnitine dehydrogenase deficiency"
-    }
-  ],
-  "Otological disorder": [
-    {
-      "disease_name_lc": "ear disease",
-      "disease_name": "Ear disease",
-      "disease": null,
-      "disease_class": "Otological disorder",
-      "disease_name_correct": "Ear disease",
-      "id_name_for_menu": "Ear disease (NA), Name in MW: Ear disease"
     }
   ],
   "Psychological disorder": [
