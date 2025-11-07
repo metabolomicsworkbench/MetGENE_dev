@@ -1,0 +1,10 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+data/*.RDS
+data/*_metGenes_ecNumber.txt
+data/*__metSYMBOLs.txt
+data/*.gene_info_*.txt*proteincoding_ENTREZID_SYMBOL.txt
+
+cache
+
