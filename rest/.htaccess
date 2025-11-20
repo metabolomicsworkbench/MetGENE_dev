@@ -1,0 +1,21 @@
+# https://glennmessersmith.com/pages/wphtaccess.html#cond
+# https://httpd.apache.org/docs/current/rewrite/flags.html
+# Standard URL:
+# https://bdcw.org/MetGENE/reactions.php?species=hsa&GeneIDType=SYMBOL&anatomy=Blood&disease=Diabetes&phenotype=BMI&GeneInfoStr=RPE&viewType=json
+
+# REST URL:
+# https://bdcw.org/MetGENE/rest/reactions/species/hsa/GeneIDType/SYMBOL/GeneInfoStr/RPE/anatomy/Blood/disease/Diabetes/phenotype/BMI/viewType/json
+
+<IfModule mod_rewrite.c>
+    Options +FollowSymlinks
+    RewriteEngine On
+
+#    RewriteCond %{REQUEST_FILENAME} !-f
+#   RewriteCond %{REQUEST_FILENAME} !-d
+#    RewriteRule ^(.*)/species/(.*)/GeneIDType/(.*)/GeneInfoStr/(.*)/anatomy/(.*)/disease/(.*)/phenotype/(.*)/viewType/(.*)$ https://bdcw.org/MetGENE/$1.php?species=$2&GeneIDType=$3&GeneInfoStr=$4&anatomy=$5&disease=$6&phenotype=$7&viewType=$8 [L]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ metgene_rest_api.php?rquest=$1 [L]
+</IfModule>
+
