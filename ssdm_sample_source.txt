@@ -1,0 +1,257 @@
+
+Adipose tissue
+Adrenal gland
+Algae
+AML cells
+Amniotic fluid
+Anther
+Aortic valve tissue
+Apricot Fruit
+Arteries
+Astrocyte cells
+Atria
+Back of Eye
+Bacterial cells
+Bacterial media
+Bacterial outer membrane vesicles
+BAT
+B-cells
+Bee heads
+Biofilm
+Biopsy
+Bladder
+Blood
+Blubber
+Bone
+Bone marrow
+Bone marrow serum
+Bovine meat
+Brain
+Brain Cancer Cells
+Brain cortex
+Brain organoids
+Brainstem
+Breast
+Breast cancer cells
+Breast milk
+Breast tissue
+Breath
+Brown adipose
+Cancer ascites
+Cancer cells
+Capsicum Chinense
+Cardiomyocyte cells
+Cartilage
+Cecal content
+Cecum
+Cells
+Cerebrospinal fluid
+Chow diet
+CNS
+Cocoon shell
+Colon
+Colonic mucosa
+Colorectal Cancer Cells
+Colorectal Tissue
+Corpus Luteum
+Cortex
+Cultured cells
+Culture media
+Cyst fluid
+Date palm fruit
+Diaphragm
+Diatom cells
+Diet
+Dorsal Root Ganglia
+DSI
+Duodenum
+Eggs
+Embryonic cells
+Endothelial cells
+Epididymal fat
+Epithelial cells
+Epithelial lining fluid
+Erythrocytes
+Esophagus
+Extracellular vescicles
+Eye
+Eye tissue
+Feces
+Fibroblast cells
+Fin
+Fish larvae
+Flushing
+Fly
+Fly Head
+Follicular fluid
+Food
+Foreskin
+Fruit
+Fungal cells
+Fungus
+Galea
+Gallbladder
+Gastrocnemius
+Glioma cells
+gWAT
+Head
+Heart
+HEK cells
+HeLa cells
+Hemolymph
+Hepatocytes
+Hepatopancreas
+Hep G2 cells
+Hippocampus
+Holobiont
+Honey
+Human tissue
+Hypothalamus
+Ileum
+Infected Red Blood Cells
+Insect tissue
+Interstitial fluid
+Intestinal fluid
+Intestine
+Intracellular Granulocyte
+iPSC cells
+Jejunum
+Keratinocytes
+Kidney
+Larvae
+Latex
+Leaf
+Leukemia cells
+Liver
+Liver Cancer Cell Line
+LNCaP cells
+Lung
+Lung Tumors
+Lymph fluid
+Lymph node
+Lymphoma cells
+Macrophages
+Maize kernel
+Maize starchy endosperm
+Marine particulate matter
+Media
+Merozoites
+Mesenteric lymph
+Microbial culture
+Microglia
+Milk
+Minimal cell JCVI-syn3B
+Mitochondria
+Mononuclear cells
+Mouse tissue
+MSI
+Multiple tissues
+Muscle
+Mycoplasma mycoides
+Myotubes
+Nasal Polyp tissue
+Nerve
+Neurons
+Neurospheres
+Neutrophils
+Nucleus accumbens
+Optic nerve
+Ovarian cancer cells
+Ovaries
+Pancreas
+Pancreatic Cancer Cells
+Parasite
+Pepper pericarp
+Peritoneal fluid
+Pituitary gland
+PJI Tissue
+Placenta
+Plankton
+Plant
+Plant Leaves and Roots
+Plant shoots
+Plaque samples
+Plasmodium cells
+Pooled sample
+Preadipocytes
+Prostate
+Prostate cancer cells
+Proximal tubular cells
+PSI
+Quadriceps
+Rectum
+Renal Medulla
+Retina
+Rhizome
+Rhizosphere
+Ribonucleic acid
+Roots
+Rumen fluid
+Saliva
+Sarcoma
+Scalp
+Seaweed
+Seedlings
+Seeds
+Serum
+Shrimp organs
+SI
+SIHUMIx
+Skeleton
+Skin
+Small intestine
+Smooth muscle
+Soil
+Soleus muscle
+Spermatozoa
+Spinal cord
+Spleen
+Splenocytes
+Sputum
+Standard phosphatidylcholines
+Stem cells
+Stomach
+Stool
+Strawberry leaves
+Subcutaneous fat
+Supernatant
+Suspended Marine Particulate Matter
+Sweat
+Synthetic
+Tail
+T-cells
+Tear
+Tendon
+Testes
+Thymus
+Thyroid
+Tissue
+Tissue pool
+Tomato
+Tongue
+Tritrichomonas musculis cells
+Tumor allograft
+Tumor cells
+Tumor interstitial fluid
+Tumor tissue
+Ulcer biopsies
+Umbilical cord plasma
+Unspecified
+Urine
+Uterine fluid
+Uterus
+Vaginal epithelium
+Vascular smooth muscle cells
+Vastus lateralis
+Vena cava
+Ventricles
+Vitreous
+Water
+White adipose
+Whole animals
+Whole insect
+Whole Tissue
+Whole tumor
+Wine
+Worms
+Yeast cells
