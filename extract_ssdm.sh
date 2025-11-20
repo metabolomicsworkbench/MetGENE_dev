@@ -4,5 +4,5 @@
 #<option value=""></option>
 #<option value="Adipose tissue">Adipose tissue</option>
 
-grep -o 'value="[^"]*"' ssdm_sample_source_pulldown_menu_phpcode.php | sed 's/value="//; s/"$//' > ssdm_sample_source.txt
+grep -o 'value="[^"]*"' ssdm_sample_source_pulldown_menu_phpcode.html | sed 's/value="//; s/"$//' > ssdm_sample_source.txt
 
