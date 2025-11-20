@@ -1,20 +1,47 @@
 <?php
 
-// Load JSON from file (local or remote)
-$json = file_get_contents('disease_pulldown_menu_cascaded.json');
-$data = json_decode($json, true);
+function getDiseaseNames(string $source): array
+{
+    // Load JSON (works for local file or URL)
+    $json = file_get_contents($source);
 
-$diseaseNames = [];
+    if ($json === false) {
+        throw new Exception("Cannot read source: $source");
+    }
 
-foreach ($data as $outer) {                // 1st level
-    foreach ($outer as $inner) {           // 2nd level
-        if (isset($inner['disease_name'])) {
-            $diseaseNames[] = $inner['disease_name'];
+    $data = json_decode($json, true);
+
+    if (!is_array($data)) {
+        throw new Exception("Invalid JSON in: $source");
+    }
+
+    $diseaseNames = [];
+
+    foreach ($data as $outer) {
+        foreach ($outer as $inner) {
+            if (isset($inner['disease_name'])) {
+                $diseaseNames[] = $inner['disease_name'];
+            }
         }
     }
+
+    return $diseaseNames;
 }
 
-print_r($diseaseNames);
+// ---- Example usage ----
+
+// If using in another script, add the line:
+// include_once 'extract_disease_names.php';
+
+// Local file:
+//$names = getDiseaseNames('disease_pulldown_menu_cascaded.json');
+
+// Remote:
+//$names = getDiseaseNames(
+//    'https://raw.githubusercontent.com/metabolomicsworkbench/MetGENE/main/disease_pulldown_menu_cascaded.json'
+//);
+
+//print_r($names);
 
 ?>
 
