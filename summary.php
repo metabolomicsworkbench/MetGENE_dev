@@ -1,95 +1,273 @@
 <?php
- $viewType = $_GET["viewType"];
+/******************************************************************************
+ * MetGENE – Hardened summary.php (SECURE & CONSISTENT)
+ *
+ * BEHAVIOR:
+ *  - If ?viewType=json|txt  → returns raw JSON/TXT from R (no HTML shell)
+ *  - Else                  → full HTML page with summary table + export buttons
+ *
+ * SECURITY:
+ *  - Uses metgene_common.php (safeGet, sendSecurityHeaders, getBaseDir,
+ *    buildRscriptCommand, escapeHtml, normalizeSpecies, sanitizeGeneList)
+ *  - No direct unsanitized $_GET usage in HTML branch
+ *  - All exec() calls go through buildRscriptCommand()
+ *  - All HTML from PHP is escaped; R-generated HTML is passed through untouched
+ *****************************************************************************/
+
+declare(strict_types=1);
+session_start();
+
+require_once __DIR__ . '/metgene_common.php';
+
+sendSecurityHeaders();
+
+$base_dir = getBaseDir();
+
+/* --------------------------------------------------------------------------
+ * BRANCH ON viewType (API vs HTML)
+ * -------------------------------------------------------------------------- */
+$viewType = safeGet('viewType');
+
+if ($viewType === 'json' || $viewType === 'txt') {
+    /**************************************************************************
+     * API BRANCH: return JSON or text summary (no HTML shell)
+     **************************************************************************/
+
+    // ---- Sanitized GET parameters ----
+    $speciesRaw  = safeGet('species');
+    $geneListRaw = safeGet('GeneInfoStr');
+    $geneIDType  = safeGet('GeneIDType');
+    $anatomyRaw  = safeGet('anatomy');
+    $diseaseRaw  = safeGet('disease');
+
+    // Normalize species (e.g., hsa/mmu/etc.)
+    $norm = normalizeSpecies($speciesRaw);
+    $species = is_array($norm) ? $norm[0] : $speciesRaw;
+
+    // Whitelist geneIDType
+    $allowedGeneTypes = ['SYMBOL', 'SYMBOL_OR_ALIAS', 'ENTREZID', 'ENSEMBL', 'REFSEQ', 'UNIPROT'];
+    if (!in_array($geneIDType, $allowedGeneTypes, true)) {
+        $geneIDType = 'SYMBOL';
+    }
+
+    // Sanitize gene list into "__"-separated IDs
+    $cleanGenesArray = sanitizeGeneList($geneListRaw);
+    $geneListClean   = implode('__', $cleanGenesArray);
+
+    $domainName = $_SERVER['SERVER_NAME'] ?? 'localhost';
+
+    // ---- 1) Map input IDs → (symbols, internal IDs) via R ----
+    $cmdIds = buildRscriptCommand(
+        'extractGeneIDsAndSymbols.R',
+        [
+            $species,
+            $geneListClean,
+            $geneIDType,
+            $domainName,
+        ]
+    );
+
+    $symbol_geneIDs = [];
+    $retIds         = 0;
+    exec($cmdIds, $symbol_geneIDs, $retIds);
+
+    $gene_symbols = [];
+    $gene_ids     = [];
+
+    if ($retIds === 0 && !empty($symbol_geneIDs)) {
+        $gene_id_symbols_arr = [];
+
+        // Flatten all lines into one array
+        foreach ($symbol_geneIDs as $line) {
+            $parts = explode(',', $line);
+            foreach ($parts as $piece) {
+                $gene_id_symbols_arr[] = trim($piece, "\" \t\n\r\0\x0B");
+            }
+        }
+
+        $length = count($gene_id_symbols_arr);
+        for ($i = 0; $i < $length; $i++) {
+            $val = $gene_id_symbols_arr[$i];
+
+            if ($i < $length / 2) {
+                $gene_symbols[] = $val;
+            } else {
+                // We rely on buildRscriptCommand for injection safety, so no regex filter here
+                if ($val !== '') {
+                    $gene_ids[] = $val;
+                }
+            }
+        }
+    }
+
+    // Build strings for R summary script
+    $gene_array_str = implode('__', $gene_ids);
+    $gene_sym_str   = implode('__', $gene_symbols);
+
+    // If nothing usable, short-circuit
+    if ($gene_array_str === '' || $gene_sym_str === '') {
+        if ($viewType === 'json') {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['error' => 'No valid gene identifiers found.']);
+        } else {
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo "No valid gene identifiers found.\n";
+        }
+        exit;
+    }
+
+    // Filename for R-generated plot(s)
+    $prefix   = 'cache/plot';
+    $suffix   = '.png';
+    $filename = $prefix . mt_rand(1, 1000000) . $suffix;
+
+    // Encode filters (fall back to NA as in original code)
+    $anatomyEnc = rawurlencode($anatomyRaw !== '' ? $anatomyRaw : 'NA');
+    $diseaseEnc = rawurlencode($diseaseRaw !== '' ? $diseaseRaw : 'NA');
+
+    // ---- 2) Call extractMWGeneSummary.R to produce JSON/TXT summary ----
+    $cmdSummary = buildRscriptCommand(
+        'extractMWGeneSummary.R',
+        [
+            $species,
+            $gene_array_str,
+            $gene_sym_str,
+            $filename,
+            $viewType,   // "json" or "txt"
+            $anatomyEnc,
+            $diseaseEnc,
+        ]
+    );
+
+    $output = [];
+    $ret    = 0;
+    exec($cmdSummary, $output, $ret);
+
+    if ($viewType === 'json') {
+        header('Content-Type: application/json; charset=UTF-8');
+    } else {
+        header('Content-Type: text/plain; charset=UTF-8');
+    }
+
+    echo implode("\n", $output) . "\n";
+    exit;
+}
+
+/* ==========================================================================
+ * HTML BRANCH: full MetGENE UI summary with caching
+ * ========================================================================== */
+
+// Session values (set upstream via nav.php)
+$species       = $_SESSION['species']       ?? '';
+$geneList      = $_SESSION['geneList']      ?? '';
+$anatomy       = $_SESSION['anatomy']       ?? 'NA';
+$disease       = $_SESSION['disease']       ?? 'NA';
+$phenotype     = $_SESSION['phenotype']     ?? '';
+$gene_array    = $_SESSION['geneArray']     ?? [];
+$gene_symbols  = $_SESSION['geneSymbols']   ?? '';
+$organism_name = $_SESSION['org_name']      ?? '';
+
+/* ------------------------- CHANGE TRACKING -------------------------------- */
+if (!isset($_SESSION['prev_summary_species']))  $_SESSION['prev_summary_species']  = '';
+if (!isset($_SESSION['prev_summary_geneList'])) $_SESSION['prev_summary_geneList'] = '';
+if (!isset($_SESSION['prev_summary_anatomy']))  $_SESSION['prev_summary_anatomy']  = '';
+if (!isset($_SESSION['prev_summary_disease']))  $_SESSION['prev_summary_disease']  = '';
+if (!isset($_SESSION['prev_summary_pheno']))    $_SESSION['prev_summary_pheno']    = '';
+
+$_SESSION['summary_changed'] = 0;
+
+if ($_SESSION['prev_summary_species'] !== $species) {
+    $_SESSION['prev_summary_species'] = $species;
+    $_SESSION['summary_changed']      = 1;
+} elseif ($_SESSION['prev_summary_geneList'] !== $geneList) {
+    $_SESSION['prev_summary_geneList'] = $geneList;
+    $_SESSION['summary_changed']       = 1;
+} elseif ($_SESSION['prev_summary_disease'] !== $disease) {
+    $_SESSION['prev_summary_disease'] = $disease;
+    $_SESSION['summary_changed']      = 1;
+} elseif ($_SESSION['prev_summary_anatomy'] !== $anatomy) {
+    $_SESSION['prev_summary_anatomy'] = $anatomy;
+    $_SESSION['summary_changed']      = 1;
+} elseif ($_SESSION['prev_summary_pheno'] !== $phenotype) {
+    $_SESSION['prev_summary_pheno'] = $phenotype;
+    $_SESSION['summary_changed']    = 1;
+}
+
+/* ------------------------- CACHE HANDLING --------------------------------- */
+$url       = $_SERVER['SCRIPT_NAME'] ?? 'summary.php';
+$file      = basename($url, '.php');
+$cachefile = 'cache/cached-' . session_id() . '-' . $file . '.html';
+$_SESSION['summary_cache_file'] = $cachefile;
+$cachetime = 18000; // 5 hours
+
+if (
+    ($_SESSION['summary_changed'] ?? 1) == 0 &&
+    file_exists($cachefile) &&
+    (time() - filemtime($cachefile)) < $cachetime
+) {
+    echo "<!-- Cached copy, generated " .
+         escapeHtml(date('H:i', filemtime($cachefile))) .
+         " -->\n";
+    readfile($cachefile);
+    exit;
+}
+
+ob_start(); // Start output buffer for caching
+
+/* ------------------------- PREPARE GENE STRINGS --------------------------- */
+// Original intention: keep all non-"NA" gene IDs; no extra filtering.
+$gene_sym_arr = $gene_symbols !== '' ? explode(',', $gene_symbols) : [];
+
+$valid_gene_ids  = [];
+$valid_gene_syms = [];
+
+for ($i = 0; $i < count($gene_array); $i++) {
+    $gid = $gene_array[$i] ?? '';
+    $sym = $gene_sym_arr[$i] ?? '';
+
+    if ($gid !== '' && $gid !== 'NA') {
+        $valid_gene_ids[]  = $gid;
+        $valid_gene_syms[] = $sym;
+    }
+}
+
+$gene_array_str = implode('__', $valid_gene_ids);
+$gene_sym_str   = implode('__', $valid_gene_syms);
+
+// Filter text (use session values, not raw $_GET)
+$anatomy_str = $anatomy !== '' ? $anatomy : 'NA';
+$disease_str = $disease !== '' ? $disease : 'NA';
+
+$anatomyEnc = rawurlencode($anatomy_str);
+$diseaseEnc = rawurlencode($disease_str);
+
+// Plot filename (as in original)
+$prefix   = 'cache/plot';
+$suffix   = '.png';
+$filename = $prefix . mt_rand(1, 1000000) . $suffix;
+$viewMode = 'all';   // original "all" summary mode
 ?>
-<?php if ( strcmp($viewType, "json") == 0 || strcmp($viewType, "txt") == 0): 
- $species = escapeshellarg($species);
- $gene_array_str = escapeshellarg($gene_array_str);
- $gene_sym_str = escapeshellarg($gene_sym_str);
- $filename = escapeshellarg($filename);
- $viewType = escapeshellarg($viewType);
-  $anatomy = urlencode($_GET["anatomy"]);
-  $disease = urlencode($_GET["disease"]);
-
-
-exec("/usr/bin/Rscript extractMWGeneSummary.R $species $gene_array_str $gene_sym_str $filename $viewType $anatomy $disease", $output, $retVar);
-
-
-  $domainName = $_SERVER['SERVER_NAME'];
- exec("/usr/bin/Rscript extractGeneIDsAndSymbols.R $species $geneList $geneIDType $domainName", $symbol_geneIDs, $retvar);
- $gene_symbols = array();
- $gene_array = array();
- $gene_id_symbols_arr = array();
- 
- foreach ($symbol_geneIDs as $val) {
- $gene_id_symbols_arr = explode(",", $val);
- }
-
- $length = count($gene_id_symbols_arr);
-
-
- for ($i=0; $i < $length; $i++) {
-   $my_str = $gene_id_symbols_arr[$i];
-   $trimmed_str = trim($my_str, "\" ");
- 
-   if ($i < $length/2) {
-     array_push($gene_symbols, $trimmed_str);
-   } else {
-     array_push($gene_array, $trimmed_str);
-   } 
- }
-
- $prefix = "cache/plot";
- $suffix = ".png";
- $filename = $prefix.rand(1,1000).$suffix;
- $gene_array_str = implode("__", $gene_array);
- 
- $gene_sym_str = implode("__", $gene_symbols);
- $anatomy = urlencode($_GET["anatomy"]);
- $disease = urlencode($_GET["disease"]);
- exec("/usr/bin/Rscript extractMWGeneSummary.R $species $gene_array_str $gene_sym_str  $filename  $viewType $anatomy $disease", $output, $retVar);
- $htmlbuff = implode("\n", $output);
- if (strcmp($viewType, "json") == 0){ 
-   header('Content-type: application/json; charset=UTF-8'); 
- } else {
-   header('Content-Type: text/plain; charset=UTF-8');
- }
- echo $htmlbuff;
-//echo "<p>Disease: <strong>$disease</strong></p>";
-//echo "<p>Anatomy: <strong>$anatomy</strong></p>";
-
-?>
-<?php else: ?>
-
 <!DOCTYPE html>
-<html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en' lang='en'>
-<head><title>MetGENE: Summarys</title>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MetGENE: Summary</title>
 
-<?php
-  $curDirPath = dirname(htmlentities($_SERVER['PHP_SELF']));
-  $METGENE_BASE_DIR_NAME = $curDirPath;
-
-    echo "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"".$METGENE_BASE_DIR_NAME."/images/apple-touch-icon.png\">";
-    echo "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"".$METGENE_BASE_DIR_NAME."/images/apple-touch-icon.png\">";
-    echo "<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"".$METGENE_BASE_DIR_NAME."/images/favicon-32x32.png\">";
-    echo "<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"".$METGENE_BASE_DIR_NAME."/images/favicon-16x16.png\">";
-    echo "<link rel=\"manifest\" href=\"".$METGENE_BASE_DIR_NAME."/site.webmanifest\">";
-
-?>
-
+<link rel="apple-touch-icon" sizes="180x180" href="<?= escapeHtml($base_dir) ?>/images/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="<?= escapeHtml($base_dir) ?>/images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="<?= escapeHtml($base_dir) ?>/images/favicon-16x16.png">
+<link rel="manifest" href="<?= escapeHtml($base_dir) ?>/site.webmanifest">
 
 <style>
 .styled-table {
-    display:table;
-    table-layout:fixed;
+    display: table;
+    table-layout: fixed;
     width: 100%;
     word-wrap: break-word;
-
 }
-
 .styled-table td {
     border: 1px solid #000;
-    padding:5px 10px;
+    padding: 5px 10px;
     text-align: center;
     width: 3%;
     word-break: break-all;
@@ -97,9 +275,8 @@ exec("/usr/bin/Rscript extractMWGeneSummary.R $species $gene_array_str $gene_sym
 }
 .styled-table tbody tr {
     border-bottom: 1px solid #dddddd;
-    text-align: center;         
+    text-align: center;
 }
-
 .styled-table tbody tr:nth-of-type(even) {
     background-color: #f3f3f3;
     text-align: center;
@@ -107,181 +284,141 @@ exec("/usr/bin/Rscript extractMWGeneSummary.R $species $gene_array_str $gene_sym
 .summary {
     background-color: white;
     width: 75;
-  color: black;
-  border: 2px solid black;
-  margin: 20px;
-  padding: 20px;
+    color: black;
+    border: 2px solid black;
+    margin: 20px;
+    padding: 20px;
 }
 </style>
 
-
-<?php     include($_SERVER['DOCUMENT_ROOT'].$METGENE_BASE_DIR_NAME."/nav.php");?>
 <?php
-
-  $_SESSION['prev_summary_species'] = isset($_SESSION['prev_summary_species'])?$_SESSION['prev_summary_species']:'';
-  $_SESSION['prev_summary_geneList'] = isset($_SESSION['prev_summary_geneList'])?$_SESSION['prev_summary_geneList']:'';
-  $_SESSION['prev_summary_anatomy'] = isset($_SESSION['prev_summary_anatomy'])?$_SESSION['prev_summary_anatomy']:'';
-  $_SESSION['prev_summary_disease'] = isset($_SESSION['prev_summary_disease'])?$_SESSION['prev_summary_disease']:'';
-  $_SESSION['prev_summary_pheno'] = isset($_SESSION['prev_summary_pheno'])?$_SESSION['prev_summary_pheno']:'';
-
-  if (strcmp($_SESSION['prev_summary_species'],$_SESSION['species']) != 0) {
-    $_SESSION['prev_summary_species'] = $_SESSION['species'];
-//    echo "prev summary species updated=".$_SESSION['prev_summary_species'];
-    $_SESSION['summary_changed'] = 1;
-//    echo "species summary_changed= ".$_SESSION['summary_changed'];
-  } else if (strcmp($_SESSION['prev_summary_geneList'], $_SESSION['geneList']) != 0) {
-    $_SESSION['prev_summary_geneList'] = $_SESSION['geneList'];
-//     echo "prev geneList  updated=".$_SESSION['prev_summary_geneList'];
-    $_SESSION['summary_changed'] = 1;
-//    echo "geneList summary_changed= ".$_SESSION['summary_changed'];
-  } else if (strcmp($_SESSION['prev_summary_disease'], $_SESSION['disease']) != 0) {
-    $_SESSION['prev_summary_disease'] = $_SESSION['disease'];
-//     echo "prev summary disease updated=".$_SESSION['prev_summary_disease'];
-    $_SESSION['summary_changed'] = 1;
-//    echo "disease summary_changed= ".$_SESSION['summary_changed'];
-  }  else if (strcmp($_SESSION['prev_summary_anatomy'], $_SESSION['anatomy']) != 0) {
-    $_SESSION['prev_summary_anatomy'] = $_SESSION['anatomy'];
-//     echo "prev summary anatomy updated=".$_SESSION['prev_summary_anatomy'];
-    $_SESSION['summary_changed'] = 1;
-//    echo "anatomy summary_changed= ".$_SESSION['summary_changed'];
-  }  else if (strcmp($_SESSION['prev_summary_pheno'], $_SESSION['phenotype']) != 0) {
-    $_SESSION['prev_summary_pheno'] = $_SESSION['phenotype'];
-//     echo "prev summary phenotype updated=".$_SESSION['prev_summary_phenotype'];
-    $_SESSION['summary_changed'] = 1;
-//    echo "phenotype summary_changed= ".$_SESSION['summary_changed'];
-  }  else {
-   $_SESSION['summary_changed'] = 0;
-  }
+// Navigation
+$nav_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/nav.php';
+if (is_readable($nav_file)) {
+    include $nav_file;
+}
 ?>
-
 </head>
 <body>
 
-
 <div id="constrain">
 <div class="constrain">
-<br>
-<br>
+<br><br>
 <p>
-
 <?php
-// top-cache.php
-$url = $_SERVER["SCRIPT_NAME"];
-$break = explode('/', $url);
-$file = $break[count($break) - 1];
-$cachefile = 'cache/cached-'.session_id().'-'.substr_replace($file ,"",-4).'.html';
-$_SESSION['summary_cache_file'] = $cachefile;
-$cachetime = 18000;
+/******************************************************************************
+ * MAIN HTML CONTENT
+ *****************************************************************************/
 
-//echo "<h3>Session changed ".$_SESSION['summary_changed']."</h3>";
-// Serve from the cache if it is younger than $cachetime
-if ( $_SESSION['summary_changed'] == False && isset($_SESSION['summary_cache_file']) && file_exists($_SESSION['summary_cache_file']) && time() - $cachetime < filemtime($_SESSION['summary_cache_file'])) {
-    echo "<!-- Cached copy, generated ".date('H:i', filemtime($cachefile))." -->\n";
-//    echo "<h3>loaded cache file</h3>";
-    readfile($cachefile);
-    exit;
-}
-ob_start(); // Start the output buffer
-///////
+if ($gene_array_str !== '') {
 
-$gene_array = (isset($_SESSION['geneArray']))?$_SESSION['geneArray']:'';
-$gene_sym_str = (isset($_SESSION['geneSymbols']))?$_SESSION['geneSymbols']:'';
-$gene_sym_arr = explode(",", $gene_sym_str);
+    // Build heading text (same logic as original, now escaped)
+    if ($anatomy_str === 'NA' && $disease_str === 'NA') {
+        $h3 = "Summary Information for <i><b>" .
+              escapeHtml($organism_name) .
+              "</b></i> gene(s) <i><b>" .
+              escapeHtml($gene_sym_str) .
+              "</b></i>";
+    } elseif ($anatomy_str === 'NA') {
+        $h3 = "Summary Information for <i><b>" .
+              escapeHtml($organism_name) .
+              "</b></i> gene(s) <i><b>" .
+              escapeHtml($gene_sym_str) .
+              "</b></i> disease <i><b>" .
+              escapeHtml($disease_str) .
+              "</b></i>";
+    } elseif ($disease_str === 'NA') {
+        $h3 = "Summary Information for <i><b>" .
+              escapeHtml($organism_name) .
+              "</b></i> gene(s) <i><b>" .
+              escapeHtml($gene_sym_str) .
+              "</b></i> anatomy <i><b>" .
+              escapeHtml($anatomy_str) .
+              "</b></i>";
+    } else {
+        $h3 = "Summary Information for <i><b>" .
+              escapeHtml($organism_name) .
+              "</b></i> gene(s) <i><b>" .
+              escapeHtml($gene_sym_str) .
+              "</b></i> anatomy <i><b>" .
+              escapeHtml($anatomy_str) .
+              "</b></i> disease <i><b>" .
+              escapeHtml($disease_str) .
+              "</b></i>";
+    }
 
-$i = 0;
-if(isset($_SESSION['species']) && isset($_SESSION['geneArray']) && isset($_SESSION['summary_changed']) && $_SESSION['summary_changed'] == 1) {
-//  echo "<h3>Regenerating...</h3>";
-    //       echo "<h3>Summary contains all studies pertaining to the given gene(s) in Metabolomics Workbench</h3>"
-   $prefix = "cache/plot";
-   $suffix = ".png";
-  $filename = $prefix.rand(1,1000).$suffix;
-  $gene_array_str = implode("__", $gene_array);
-  $gene_sym_str = implode("__", $gene_sym_arr);
-  $anatomy_str = $_GET["anatomy"];
-  $disease_str = $_GET["disease"];
-  $anatomy = urlencode($anatomy_str);
-  $disease = urlencode($disease_str);
-  $viewType = "all";
-  $organism_name = (isset($_SESSION['org_name']))?$_SESSION['org_name']:'';
+    echo "<h3>{$h3}</h3>";
 
-  if (strcmp($anatomy,"NA") == 0 && strcmp($disease,"NA") == 0) {
-    $h3_str = "<h3>Summary Information for <i><b>".$organism_name."</b></i> gene(s) <i><b>".$gene_sym_str."</b></i></h3>";
-  } else if (strcmp($anatomy,"NA") == 0) {
-    $h3_str = "<h3>Summary Information for <i><b>".$organism_name."</b></i> gene(s) <i><b>".$gene_sym_str."</b></i> disease <i><b>".$disease_str."</b></i></h3>";
-  } else if (strcmp($disease,"NA") == 0) {
-    $h3_str = "<h3>Summary Information for <i><b>".$organism_name."</b></i> gene(s) <i><b>".$gene_sym_str."</b></i> anatomy <i><b>".$anatomy_str."</b></i></h3>";
-  } else {
-    $h3_str = "<h3>Summary Information for <i><b>".$organism_name."</b></i> gene(s) <i><b>".$gene_sym_str."</b></i> anatomy <i><b>".$anatomy_str."</b></i> disease <i><b>".$disease_str."</b></i></h3>";
-  }
-  echo $h3_str;
-  exec("/usr/bin/Rscript extractMWGeneSummary.R $species $gene_array_str $gene_sym_str  $filename $viewType $anatomy $disease", $output, $retvar);
-  $htmlbuff = implode("\n", $output);
-  echo $htmlbuff;
-    $btnStr = "<p><button id=\"json\">TO JSON</button> <button id=\"csv\">TO CSV</button> </p>";
-    echo $btnStr;
+    // Call R to generate HTML summary (table with id="Table1")
+    $cmdSummaryHtml = buildRscriptCommand(
+        'extractMWGeneSummary.R',
+        [
+            $species,
+            $gene_array_str,
+            $gene_sym_str,
+            $filename,
+            $viewMode,
+            $anatomyEnc,
+            $diseaseEnc,
+        ]
+    );
+
+    $output = [];
+    $ret    = 0;
+    exec($cmdSummaryHtml, $output, $ret);
+
+    // DO NOT escape this; it's real HTML from R needed by tableHTMLExport
+    echo implode("\n", $output);
+
+    echo '<p><button id="json">TO JSON</button> <button id="csv">TO CSV</button></p>';
+
     $_SESSION['summary_changed'] = 0;
-
-
+} else {
+    echo "<h3><i>No summary available: no valid gene identifiers.</i></h3>";
 }
-
 ?>
-
-
 </p>
-    <p>
-    </p>
-
 </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<?php echo "<script src=\"".$METGENE_BASE_DIR_NAME."/src/tableHTMLExport.js\"></script>"; ?>
+<script src="<?= escapeHtml($base_dir) ?>/src/tableHTMLExport.js"></script>
 <script>
-  $('#json').on('click',function(){
-    var gene_arr_str = '<?php echo json_encode($gene_array); ?>';
-    var gene_arr = JSON.parse(gene_arr_str);
-    let len = gene_arr.length;
-    let tabName = "";
-    let fname = "";
-    for (let i =0; i < len; i++) {
-        tabName = "#Table1";
-        fname = "Summary.json";
-        $(tabName).tableHTMLExport({type:'json',filename:fname});
-    }
-  })
-  $('#csv').on('click',function(){
-    var gene_arr_str = '<?php echo json_encode($gene_array); ?>';
-    var gene_arr = JSON.parse(gene_arr_str);
-    let len = gene_arr.length;
-    let tabName = "";
-    let fname = "";
-    for (let i =0; i < len; i++) {
-        tabName = "#Table1";
-        fname = "Summary.csv";
-        $(tabName).tableHTMLExport({type:'csv',filename:fname});
-    }
-  })
+  $('#json').on('click', function () {
+      // Original intention: export #Table1 to JSON
+      $('#Table1').tableHTMLExport({
+          type: 'json',
+          filename: 'Summary.json'
+      });
+  });
 
-
+  $('#csv').on('click', function () {
+      // Original intention: export #Table1 to CSV
+      $('#Table1').tableHTMLExport({
+          type: 'csv',
+          filename: 'Summary.csv'
+      });
+  });
 </script>
 
-<?php include($_SERVER['DOCUMENT_ROOT'].$METGENE_BASE_DIR_NAME."/footer.php");?>
 <?php
-// bottom-cache.php
-// Cache the contents to a cache file
-//echo "creating cached file ".$cachefile;
+// Footer
+$footer_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/footer.php';
+if (is_readable($footer_file)) {
+    include $footer_file;
+}
 
-$cachefile = $_SESSION['summary_cache_file'];
-$cached = fopen($cachefile, 'w');
-
-fwrite($cached, ob_get_contents());
-fclose($cached);
-ob_end_flush(); // Send the output to the browser
+// Cache the rendered HTML
+if (!is_dir(dirname($cachefile))) {
+    @mkdir(dirname($cachefile), 0755, true);
+}
+$cached = @fopen($cachefile, 'w');
+if ($cached) {
+    fwrite($cached, ob_get_contents());
+    fclose($cached);
+}
+ob_end_flush();
 ?>
+
 </body>
-
-
-
-
 </html>
-<?php endif; ?> 
