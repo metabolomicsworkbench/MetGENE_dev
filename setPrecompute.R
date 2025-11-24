@@ -10,4 +10,4 @@
 # Please see the files README.md and LICENSE for more details.
 ################################################
 
-preCompute <- 0
+preCompute <- 1

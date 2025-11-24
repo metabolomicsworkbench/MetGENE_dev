@@ -1,47 +1,80 @@
 #!/usr/bin/env Rscript
-## This function takes an array of gene ENTREZ ids and returns corresponding gene symbols as a single string with gene symbols separated by comma.
-# Call syntax : RScript extractGeneIDsAndSymbols.R <species> <geneInfoArray> <geneIDType> <domainName>
-# Input: species (e.g. hsa, mmu)
-#        geneInfoArray: array or ENTREZ IDs or SYMBOLS e.g. c(3098, 6120) or c(HK1, RPE)
-#        geneIDType : e.g. one of ENTREZID, SYMBOL, SYMBOL_OR_ALIAS, ENSEMBL, REFSEQ, UNIROT
-#        domainName : web domain address for the geneID REST API service
-# Output : An array of different types of gene IDs e.g. ENTRZID, SYMBOL, etc.
 
-library(utils)
-library(xtable)
-library(textutils)
-library(jsonlite)
-library(tuple)
-library(tidyr)
-library(tidyverse)
+suppressPackageStartupMessages({
+  library(jsonlite)
+  library(dplyr)
+})
 
+# -------------------------------
+# SAFE URL BUILDER
+# -------------------------------
+safe_url <- function(domain, species, geneType, genes) {
 
-
-getGeneSymbolEntrezIDs <- function(orgStr, geneInfoArray, geneIDType, domainName) {
-  #https://bdcw.org/geneid/rest/species/hsa/GeneIDType/SYMBOL_OR_ALIAS/GeneListStr/ITPR3,IL6,%20KLF4/View/json
-  #https://bdcw.org/geneid/rest/species/hsa/GeneIDType/SYMBOL_OR_ALIAS/GeneListStr/RPE,%20ALDOB/View/json
-  USE_NCBI_GENE_INFO = 0; # 2023/10/23
-  geneInfoArray = gsub(" ", "%20", geneInfoArray);
-#  url_str_gene_php = paste0("https://", domainName, "/geneid/rest/species/", orgStr, "/GeneIDType/", geneIDType, "/GeneListStr/", geneInfoArray, "/View/json");
-  url_str_gene_php = paste0("https://", domainName, "/geneid/rest/species/", orgStr, "/GeneIDType/", geneIDType, "/GeneListStr/", geneInfoArray, "/USE_NCBI_GENE_INFO/", USE_NCBI_GENE_INFO, "/View/json");
-  #print(url_str_gene_php);
-  GeneAllInfo = fromJSON(url_str_gene_php, simplifyVector = TRUE);
-  #GeneAllInfo = fromJSON(URLencode(url_str_gene_php), simplifyVector = TRUE);a # encode the URL: 2023/01/13 # doesn't work
-  newdf = GeneAllInfo[c("SYMBOL", "ENTREZID")];
-  uniquedf = unique(newdf);
+  # encode each parameter safely
+  genes_enc   <- URLencode(genes, reserved = TRUE)
+  species_enc <- URLencode(species, reserved = TRUE)
+  type_enc    <- URLencode(geneType, reserved = TRUE)
   
-  symbolStrArray = uniquedf$SYMBOL;
-  entrezIDArray = uniquedf$ENTREZID;
-  returndf = c(symbolStrArray, entrezIDArray);
-   
-  return(toString(returndf) %>% cat())
-
-
+  USE_NCBI_GENE_INFO <- 0
+  
+  paste0(
+    "https://", domain,
+    "/geneid/rest/species/", species_enc,
+    "/GeneIDType/", type_enc,
+    "/GeneListStr/", genes_enc,
+    "/USE_NCBI_GENE_INFO/", USE_NCBI_GENE_INFO,
+    "/View/json"
+  )
 }
 
-args <- commandArgs(TRUE);
-species <- args[1];
-geneInfoArray <- args[2];
-geneIDType <- args[3];
-domainName  <- args[4];
-outval <- getGeneSymbolEntrezIDs(species, geneInfoArray, geneIDType, domainName)
+# -------------------------------
+# MAIN FUNCTION (HARDENED)
+# -------------------------------
+getGeneSymbolEntrezIDs <- function(orgStr, geneInfoArray, geneIDType, domainName) {
+
+  # normalize whitespace
+  geneInfoArray <- gsub(" ", "%20", geneInfoArray)
+
+  url <- safe_url(domainName, orgStr, geneIDType, geneInfoArray)
+
+  # fetch with error handling
+  GeneAllInfo <- tryCatch(
+    {
+      fromJSON(url, simplifyVector = TRUE)
+    },
+    error = function(e) {
+      write("ERROR: Unable to fetch or parse JSON from remote API.", stderr())
+      quit(status = 1)
+    }
+  )
+
+  # ensure expected fields exist
+  if (!all(c("SYMBOL", "ENTREZID") %in% names(GeneAllInfo))) {
+    write("ERROR: JSON response missing expected fields.", stderr())
+    quit(status = 1)
+  }
+
+  newdf <- unique(GeneAllInfo[c("SYMBOL", "ENTREZID")])
+
+  # prepare output identical to original behavior
+  out <- toString(c(newdf$SYMBOL, newdf$ENTREZID))
+  
+  cat(out) # safe: outputs only final string
+}
+
+# -------------------------------
+# ENTRY POINT
+# -------------------------------
+args <- commandArgs(TRUE)
+
+if (length(args) != 4) {
+  write("ERROR: Expected 4 arguments: <species> <geneInfoArray> <geneIDType> <domainName>", stderr())
+  quit(status = 1)
+}
+
+species      <- args[1]
+geneInfo     <- args[2]
+geneType     <- args[3]
+domainName   <- args[4]
+
+getGeneSymbolEntrezIDs(species, geneInfo, geneType, domainName)

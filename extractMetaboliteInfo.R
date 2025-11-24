@@ -9,7 +9,7 @@
 # Output: A table in json or txt format comprising of metabolite information
 #         or a html table (if viewType is neither json or txt).
 #         The table contains Gene, KEGG_COMPOUND_ID, REFMET_NAME, KEGG_REACTION_ID, METSTAT_LINK
-
+#
 ################################################
 # Restrictions due to the use of KEGG APIs (https://www.kegg.jp/kegg/legal.html, see also https://www.pathway.jp/en/academic.html)
 # * Using this code to provide user's own web service
@@ -18,39 +18,43 @@
 # If and only if the user has purchased license for KEGG FTP Data, they can activate a 'preCompute' mode to run faster version of MetGENE. To achieve this, please set preCompute = 1 in the file setPrecompute.R. Otherwise, please ensure that preCompute is set to 0 in the file setPrecompute.R. Further, to use the faster version, the user needs to run the R scripts in the 'data' folder first. Please see the respective R files in the 'data' folder for instructions to run them.
 # Please see the files README.md and LICENSE for more details.
 ################################################
-#source("libPathKEGGREST.R") # nolint: spaces_inside_linter, line_length_linter.
-library(KEGGREST)
-library(rlang)
-library(stringr)
-library(data.table)
-library(xtable)
-library(jsonlite)
-library(tictoc)
-library(tidyverse)
-library(plyr)
-library(tictoc)
+# source("libPathKEGGREST.R") # nolint: spaces_inside_linter, line_length_linter.
+
+suppressPackageStartupMessages({
+  library(KEGGREST)
+  library(rlang)
+  library(stringr)
+  library(data.table)
+  library(xtable)
+  library(jsonlite)
+  library(tictoc)
+  library(tidyverse)
+  library(plyr)
+})
+
+# local helpers (validation / normalization)
+source("common_functions.R")
 
 # set flag for precompute tables
 source("setPrecompute.R")
 source("refmet_convert_faster_fun.R")
 
-
+# --------------------------------------------------------------------
+# Helper: get reactions that contain a metabolite
+# --------------------------------------------------------------------
 getRxnsContainingMetabolite <- function(rxnList, metdf) {
   ## Get reactions from KeGG for the metabolite and return common reactions with gene reaction set
-  metabRxns <- vector()
-
   metRxns <- metdf$REACTION
   metRxnsArr <- unlist(metRxns)
   combined_metRxns <- paste(metRxnsArr, collapse = " ")
   metRxns <- strsplit(combined_metRxns, " ")[[1]]
-
-
   commonRxns <- (rxnList[rxnList %in% metRxns])
-
-
-  return(commonRxns)
+  commonRxns
 }
 
+# --------------------------------------------------------------------
+# Helper: get reaction IDs + compound IDs from KEGG
+# --------------------------------------------------------------------
 getRxnIDsAndCpdIDsFromKEGG <- function(queryStr) {
   # Fetch enzyme information from KEGG
   kegg_data <- keggGet(queryStr)
@@ -76,7 +80,7 @@ getRxnIDsAndCpdIDsFromKEGG <- function(queryStr) {
   reaction_labels <- paste("reaction", seq_along(rxn_vec))
   rxn_df <- data.frame(
     Type = reaction_labels,
-    ID = rxn_vec,
+    ID   = rxn_vec,
     stringsAsFactors = FALSE
   )
 
@@ -88,200 +92,357 @@ getRxnIDsAndCpdIDsFromKEGG <- function(queryStr) {
   compound_labels <- paste("compound", seq_along(cpd_vec))
   cpd_df <- data.frame(
     Type = compound_labels,
-    ID = cpd_vec,
+    ID   = cpd_vec,
     stringsAsFactors = FALSE
   )
 
   # Combine the dataframes
-  combined_df <- rbind(rxn_df, cpd_df)
-
-  return(combined_df)
+  rbind(rxn_df, cpd_df)
 }
 
+# --------------------------------------------------------------------
+# Main table generator
+# --------------------------------------------------------------------
+getMetaboliteInfoTable <- function(species_raw,
+                                   geneIdStr_raw,
+                                   anatomyStr_raw,
+                                   diseaseStr_raw,
+                                   viewType_raw) {
+  # Normalize species (mirrors PHP normalizeSpecies)
+  sp_norm <- normalize_species(species_raw)
+  species <- sp_norm$code
+  organism_name <- sp_norm$org_name
 
-getMetaboliteInfoTable <- function(orgStr, geneIdStr, anatomyStr, diseaseStr, viewType) {
+  # Load curated lists for validation
+  allowed_diseases <- load_allowed_diseases("disease_pulldown_menu_cascaded.json")
+  allowed_anatomy  <- load_allowed_anatomy("ssdm_sample_source_pulldown_menu.html")
+
+  # Sanitize gene ID(s), use the first valid entry
+  gene_ids <- sanitize_gene_ids(geneIdStr_raw)
+  if (length(gene_ids) == 0) {
+    stop("No valid gene ID provided for metabolite extraction.")
+  }
+  geneIdStr <- gene_ids[[1]]
+
+  # Validate disease / anatomy using both curated list + safe pattern
+  diseaseStr <- validate_disease(diseaseStr_raw, allowed_diseases)
+  anatomyStr <- validate_anatomy(anatomyStr_raw, allowed_anatomy)
+
+  # convert "empty" to "" (used in URLs)
+  if (identical(diseaseStr, "")) {
+    diseaseStr <- ""
+  }
+  if (identical(anatomyStr, "")) {
+    anatomyStr <- ""
+  }
+
+  # view type: pass through, but use lower-case flag
+  viewType <- as.character(viewType_raw[[1]])
+  vtFlag <- tolower(viewType)
+
   currDir <- paste0("/", basename(getwd()))
 
-  metabRxnList <- data.frame(matrix(ncol = 4, nrow = 0), stringsAsFactors = False)
+  metabRxnList <- data.frame(
+    matrix(ncol = 4, nrow = 0),
+    stringsAsFactors = FALSE
+  )
   colnames(metabRxnList) <- c("KEGG_COMPOUND_ID", "REFMET_NAME", "KEGG_REACTION_ID", "METSTAT_LINK")
-  jsonDF <- data.frame(matrix(ncol = 4, nrow = 0), stringsAsFactors = False)
-  colnames(jsonDF) <- c("KEGG_COMPOUND_ID", "REFMET_NAME", "KEGG_REACTION_ID", "METSTAT_LINK")
-  reactionsList <- list()
 
-  if (orgStr %in% c("Human", "human", "hsa", "Homo sapiens")) {
-    organism_name <- "Human"
-  } else if (orgStr %in% c("Mouse", "mouse", "mmu", "Mus musculus")) {
-    organism_name <- "Mouse"
-  } else if (orgStr %in% c("Rat", "rat", "rno", "Rattus norvegicus")) {
-    organism_name <- "Rat"
-  }
-  queryStr <- paste0(orgStr, ":", geneIdStr)
+  jsonDF <- data.frame(
+    matrix(ncol = 4, nrow = 0),
+    stringsAsFactors = FALSE
+  )
+  colnames(jsonDF) <- c("KEGG_COMPOUND_ID", "REFMET_NAME", "KEGG_REACTION_ID", "METSTAT_LINK")
+
+  # Build KEGG query
+  queryStr <- paste0(species, ":", geneIdStr)
+
   if (preCompute == 1) {
     # Load RDS file containing gene information
-    rdsFilename <- paste0("./data/", orgStr, "_keggLink_mg.RDS")
+    rdsFilename <- paste0("./data/", species, "_keggLink_mg.RDS")
     all_df <- readRDS(rdsFilename)
     df <- subset(all_df, org_ezid == queryStr)
   } else {
-    # df <- keggLink(queryStr) # keggLink interface has changed
     df <- getRxnIDsAndCpdIDsFromKEGG(queryStr)
   }
 
-  # All metabolites pertainin go the gene are prefixed as cpd:
+  # All metabolites pertaining to the gene are prefixed as cpd:
   cpds <- df[str_detect(df[, 2], "cpd:"), 2]
   # All reactions pertaining to the gene are prefixed as rn:
   rxns <- df[str_detect(df[, 2], "rn:"), 2]
 
   metabList <- gsub("cpd:", "", cpds)
   reactionsList <- gsub("rn:", "", rxns)
+
+  # prepare strings used for MW queries
   anatomyQryStr <- anatomyStr
   diseaseQryStr <- diseaseStr
-  if (!is_empty(anatomyStr) && length(anatomyStr) > 0 && str_detect(anatomyStr, " ")) {
-    anatomyQryStr <- str_replace_all(anatomyStr, " ", "+")
+
+  if (!is.null(anatomyQryStr) && nchar(anatomyQryStr) > 0 && str_detect(anatomyQryStr, " ")) {
+    anatomyQryStr <- str_replace_all(anatomyQryStr, " ", "+")
   }
 
-  if (!is_empty(diseaseStr) && length(diseaseStr) > 0 && str_detect(diseaseStr, " ")) {
-    diseaseQryStr <- str_replace_all(diseaseStr, " ", "+")
+  if (!is.null(diseaseQryStr) && nchar(diseaseQryStr) > 0 && str_detect(diseaseQryStr, " ")) {
+    diseaseQryStr <- str_replace_all(diseaseQryStr, " ", "+")
   }
 
+  # Retrieve KEGG cpd info
   if (preCompute == 1) {
-    # Load RData file comprising of KEGG compound information
-    rdsfilename <- paste0("./data/", orgStr, "_keggGet_cpdInfo.RDS")
-    cpdInfodf = readRDS(rdsfilename)
+    rdsfilename <- paste0("./data/", species, "_keggGet_cpdInfo.RDS")
+    cpdInfodf <- readRDS(rdsfilename)
     metRespdf <- cpdInfodf[rownames(cpdInfodf) %in% metabList, ]
   } else {
     query_split <- split(metabList, ceiling(seq_along(metabList) / 10))
     info <- llply(query_split, function(x) keggGet(x))
-    unlist_info <- unlist(info, recursive = F)
+    unlist_info <- unlist(info, recursive = FALSE)
     extract_info <- lapply(unlist_info, "[", c("ENTRY", "NAME", "REACTION"))
     dd <- do.call(rbind, extract_info)
     metRespdf <- as.data.frame(dd)
     rownames(metRespdf) <- metRespdf$ENTRY
   }
+
   if (length(metabList) > 0) {
     allrefmetDF <- refmet_convert_fun(as.data.frame(metabList))
 
-
-    for (m in 1:length(metabList)) {
+    for (m in seq_along(metabList)) {
       metabStr <- metabList[[m]]
 
-      metabURLStr <- paste0("<a href = \"https://www.kegg.jp/entry/", metabStr, "\" target = \"__blank\">", metabStr, "</a>")
+      metabURLStr <- paste0(
+        "<a href = \"https://www.kegg.jp/entry/",
+        metabStr,
+        "\" target = \"__blank\">",
+        metabStr,
+        "</a>"
+      )
 
       metqryDF <- metRespdf[grep(metabStr, rownames(metRespdf)), ]
       keggCpdName <- unique(metqryDF$NAME)
 
       metabRxns <- getRxnsContainingMetabolite(reactionsList, metqryDF)
 
-
       mwDF <- subset(allrefmetDF, Input.name == metabStr)
 
-      if (!is.null(mwDF)) {
+      if (!is.null(mwDF) && nrow(mwDF) > 0) {
         refmetIdVals <- unique(mwDF$Standardized.name)
         refCounts <- length(refmetIdVals)
 
         if (refCounts == 1) {
           refmetId <- refmetIdVals
-          # convert refmet name to be a queryable string
-          # Need refmetID to display and refmetQryStr to query and that needs ti be sanitized
-          # Cannot use URLencode since it replaces blank with %20 and we need to replace it with a +
+
           refmetQryStr <- gsub("\\+", "%2b", refmetId)
           refmetQryStr <- gsub(" ", "+", refmetQryStr)
-          refmetName <- paste0("<a href=\"https://www.metabolomicsworkbench.org/databases/refmet/refmet_details.php?REFMET_NAME=", refmetQryStr, "\" target = \"_blank\"> ", refmetId, "</a>")
-          metStatStr <- paste0("<a href=\"http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=", refmetQryStr, "&refmet_name=", refmetQryStr, "&SPECIES=", organism_name, "&DISEASE=", diseaseStr, "&SOURCE=", anatomyStr, "&rows_to_display=1\" target=\"_blank\">", "<img src=\"", currDir, "/images/statSymbolIcon.png\" alt=\"metstat\" width=\"30\">", "</a>")
+
+          refmetName <- paste0(
+            "<a href=\"https://www.metabolomicsworkbench.org/databases/refmet/refmet_details.php?REFMET_NAME=",
+            refmetQryStr,
+            "\" target = \"_blank\"> ",
+            refmetId,
+            "</a>"
+          )
+
+          metStatStr <- paste0(
+            "<a href=\"http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=",
+            refmetQryStr,
+            "&refmet_name=",
+            refmetQryStr,
+            "&SPECIES=",
+            organism_name,
+            "&DISEASE=",
+            diseaseQryStr,
+            "&SOURCE=",
+            anatomyQryStr,
+            "&rows_to_display=1\" target=\"_blank\">",
+            "<img src=\"",
+            currDir,
+            "/images/statSymbolIcon.png\" alt=\"metstat\" width=\"30\">",
+            "</a>"
+          )
 
           metabRxnsStr <- paste(metabRxns, collapse = ", ")
-          rxnsURLs <- paste0("<a href=\"", "https://www.genome.jp/entry/rn:", metabRxns, "\" target=\"_blank\">", metabRxns, "</a>")
+          rxnsURLs <- paste0(
+            "<a href=\"https://www.genome.jp/entry/rn:",
+            metabRxns,
+            "\" target=\"_blank\">",
+            metabRxns,
+            "</a>"
+          )
           rxnsURLStr <- paste(rxnsURLs, collapse = ", ")
-          metabRxnList[nrow(metabRxnList) + 1, ] <- c(metabURLStr, refmetName, rxnsURLStr, metStatStr)
-          metStatLink <- paste0("http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=", refmetQryStr, "&refmet_name=", refmetQryStr, "&SPECIES=", organism_name, "&DISEASE=", diseaseStr, "&SOURCE=", anatomyStr)
 
-          jsonDF[nrow(jsonDF) + 1, ] <- c(metabStr, refmetId, metabRxnsStr, metStatLink)
+          metabRxnList[nrow(metabRxnList) + 1, ] <-
+            c(metabURLStr, refmetName, rxnsURLStr, metStatStr)
+
+          metStatLink <- paste0(
+            "http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=",
+            refmetQryStr,
+            "&refmet_name=",
+            refmetQryStr,
+            "&SPECIES=",
+            organism_name,
+            "&DISEASE=",
+            diseaseQryStr,
+            "&SOURCE=",
+            anatomyQryStr
+          )
+
+          jsonDF[nrow(jsonDF) + 1, ] <-
+            c(metabStr, refmetId, metabRxnsStr, metStatLink)
         } else {
-          ## multiple refmet Ids case, vectorized for performance
-
-
+          # multiple refmet Ids case, vectorized
           refmetQryStrs <- gsub("\\+", "%2b", refmetIdVals)
           refmetQryStrs <- gsub(" ", "+", refmetQryStrs)
-          refmetNameStrs <- paste0("<a href=\"https://www.metabolomicsworkbench.org/databases/refmet/refmet_details.php?REFMET_NAME=", refmetQryStrs, "\" target = \"_blank\"> ", refmetIdVals, "</a>")
-          metStatStrs <- paste0("<a href=\"http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=", refmetQryStrs, "&refmet_name=", refmetQryStrs, "&SPECIES=", organism_name, "&DISEASE=", diseaseStr, "&SOURCE=", anatomyStr, "&rows_to_display=1\" target=\"_blank\">", "<img src=\"", currDir, "/images/statSymbolIcon.png\" alt=\"metstat\" width=\"30\">", "</a>")
+
+          refmetNameStrs <- paste0(
+            "<a href=\"https://www.metabolomicsworkbench.org/databases/refmet/refmet_details.php?REFMET_NAME=",
+            refmetQryStrs,
+            "\" target = \"_blank\"> ",
+            refmetIdVals,
+            "</a>"
+          )
+
+          metStatStrs <- paste0(
+            "<a href=\"http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=",
+            refmetQryStrs,
+            "&refmet_name=",
+            refmetQryStrs,
+            "&SPECIES=",
+            organism_name,
+            "&DISEASE=",
+            diseaseQryStr,
+            "&SOURCE=",
+            anatomyQryStr,
+            "&rows_to_display=1\" target=\"_blank\">",
+            "<img src=\"",
+            currDir,
+            "/images/statSymbolIcon.png\" alt=\"metstat\" width=\"30\">",
+            "</a>"
+          )
+
           metabRxnsStr <- paste(metabRxns, collapse = ", ")
-          rxnsURLs <- paste0("<a href=\"", "https://www.genome.jp/entry/rn:", metabRxns, "\" target=\"_blank\">", metabRxns, "</a>")
+          rxnsURLs <- paste0(
+            "<a href=\"https://www.genome.jp/entry/rn:",
+            metabRxns,
+            "\" target=\"_blank\">",
+            metabRxns,
+            "</a>"
+          )
           rxnsURLStr <- paste(rxnsURLs, collapse = ", ")
-          rxnURLStrs <- rep(rxnsURLStr, length(refmetIdVals))
-          metabURLStrs <- rep(metabURLStr, length(refmetIdVals))
-          refMetDF <- data.frame(metabURLStrs, refmetNameStrs, rxnURLStrs, metStatStrs)
+
+          rxnURLStrs    <- rep(rxnsURLStr, length(refmetIdVals))
+          metabURLStrs  <- rep(metabURLStr, length(refmetIdVals))
+
+          refMetDF <- data.frame(
+            metabURLStrs,
+            refmetNameStrs,
+            rxnURLStrs,
+            metStatStrs,
+            stringsAsFactors = FALSE
+          )
           colnames(refMetDF) <- colnames(metabRxnList)
           metabRxnList <- rbind(metabRxnList, refMetDF)
-          metStatLinks <- paste0("http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=", refmetQryStrs, "&refmet_name=", refmetQryStrs, "&SPECIES=", organism_name, "&DISEASE=", diseaseStr, "&SOURCE=", anatomyStr)
+
+          metStatLinks <- paste0(
+            "http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is&refmet_name_search=",
+            refmetQryStrs,
+            "&refmet_name=",
+            refmetQryStrs,
+            "&SPECIES=",
+            organism_name,
+            "&DISEASE=",
+            diseaseQryStr,
+            "&SOURCE=",
+            anatomyQryStr
+          )
+
           metabRxnsStr <- paste(metabRxns, collapse = ", ")
-          metabStrs <- rep(metabStr, length(refmetIdVals))
+          metabStrs    <- rep(metabStr, length(refmetIdVals))
           metabRxnsStrs <- rep(metabRxnsStr, length(refmetIdVals))
-          refmetJsonDF <- data.frame(metabStrs, refmetIdVals, metabRxnsStrs, metStatLinks)
+
+          refmetJsonDF <- data.frame(
+            metabStrs,
+            refmetIdVals,
+            metabRxnsStrs,
+            metStatLinks,
+            stringsAsFactors = FALSE
+          )
           colnames(refmetJsonDF) <- colnames(jsonDF)
           jsonDF <- rbind(jsonDF, refmetJsonDF)
         }
       } else {
-        # get metabolite name from KeGG
-
+        # No RefMet mapping, fall back to KEGG name
         refmetId <- unique(metqryDF$NAME)
-
         refmetId <- gsub(";$", "", refmetId)
-        #        print(paste0("Kegg Cpd Name = ", keggCpdName))
-        # Use Kegg compund id here since names are complicated with extraneous symbols
-        refmetName <- paste0("<a href=\"https://www.genome.jp/entry/cpd:", metabStr, "\" target = \"_blank\"> ", refmetId, "</a>")
+
+        refmetName <- paste0(
+          "<a href=\"https://www.genome.jp/entry/cpd:",
+          metabStr,
+          "\" target = \"_blank\"> ",
+          refmetId,
+          "</a>"
+        )
 
         metStatStr <- ""
         metabRxnsStr <- paste(metabRxns, collapse = ", ")
 
-        rxnsURLs <- paste0("<a href=\"", "https://www.genome.jp/entry/rn:", metabRxns, "\" target=\"_blank\"\
->", metabRxns, "</a>")
+        rxnsURLs <- paste0(
+          "<a href=\"https://www.genome.jp/entry/rn:",
+          metabRxns,
+          "\" target=\"_blank\">",
+          metabRxns,
+          "</a>"
+        )
         rxnsURLStr <- paste(rxnsURLs, collapse = ", ")
 
-        # converting list to dataframe
-        metabRxnList[nrow(metabRxnList) + 1, ] <- c(metabURLStr, refmetName, rxnsURLStr, metStatStr)
-        metStatLink <- ""
+        metabRxnList[nrow(metabRxnList) + 1, ] <-
+          c(metabURLStr, refmetName, rxnsURLStr, metStatStr)
 
-        metabRxnsStr <- paste(metabRxns, collapse = ", ")
-        jsonDF[nrow(jsonDF) + 1, ] <- c(metabStr, refmetId, metabRxnsStr, metStatLink)
+        metStatLink <- ""
+        jsonDF[nrow(jsonDF) + 1, ] <-
+          c(metabStr, refmetId, metabRxnsStr, metStatLink)
       }
     }
 
     metDF <- metabRxnList
 
-
+    # ---------------------- Output selection --------------------------
     vtFlag <- tolower(viewType)
-    if (vtFlag == "json" || vtFlag == "jsonfile") {
+
+    if (vtFlag %in% c("json", "jsonfile")) {
       newDF <- cbind(Gene = geneIdStr, jsonDF)
-      metabJson <- toJSON(x = newDF, pretty = T)
+      metabJson <- toJSON(x = newDF, pretty = TRUE)
       return(cat(toString(metabJson)))
     } else if (vtFlag == "txt") {
       newDF <- cbind(Gene = geneIdStr, jsonDF)
       return(cat(format_csv(newDF)))
     } else {
       nprint <- nrow(metDF)
-      tableAttr <- paste0("id = 'Gene", geneIdStr, "Table'", " class=\"styled-table\"")
-      return(print(xtable(metDF[1:nprint, ]), type = "html", include.rownames = FALSE, sanitize.text.function = function(x) {
-        x
-      }, html.table.attributes = tableAttr))
+      tableAttr <- paste0("id = 'Gene", geneIdStr, "Table' class=\"styled-table\"")
+      return(print(
+        xtable(metDF[1:nprint, ]),
+        type = "html",
+        include.rownames = FALSE,
+        sanitize.text.function = function(x) x,
+        html.table.attributes = tableAttr
+      ))
     }
   }
-  #  toc()
+
+  invisible(NULL)
 }
 
-
-
-
+# --------------------------------------------------------------------
+# Main script entry
+# --------------------------------------------------------------------
 args <- commandArgs(TRUE)
-species <- args[1]
-geneStr <- args[2]
-anatomyStr <- args[3]
-diseaseStr <- args[4]
-viewType <- args[5]
-if (diseaseStr == "NA") {
-  diseaseStr <- ""
-}
-if (anatomyStr == "NA") {
-  anatomyStr <- ""
-}
-# tic("Total Time elapsed = ")
-outhtml <- getMetaboliteInfoTable(species, geneStr, anatomyStr, diseaseStr, viewType)
-# toc()
+species_raw   <- args[1]
+geneStr_raw   <- args[2]
+anatomy_raw   <- args[3]
+disease_raw   <- args[4]
+viewType_raw  <- args[5]
+
+outhtml <- getMetaboliteInfoTable(
+  species_raw  = species_raw,
+  geneIdStr_raw = geneStr_raw,
+  anatomyStr_raw = anatomy_raw,
+  diseaseStr_raw = disease_raw,
+  viewType_raw = viewType_raw
+)

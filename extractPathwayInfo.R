@@ -1,83 +1,129 @@
 #!/usr/bin/env Rscript
-# THis script obtains the pathway information pertaining to the gene input
-# Call syntax: Rscript extractPathwayInfo.R <species> <geneIDArray> <geneSymArr> <speciesSciName>
-# Input: orgStr e.g. hsa, mmu (species code)
-#        geneArray : e.g. 3098, 6120 (ENTREZID of genes)
-#        geneSymbolArray : e.g. HK1,RPE (gene symbols)
-#        species SciName : e.g. Homo sapiens, Mus musculus
-# Output: A html table comprising of pathway information hyperlinked to various pathway databases
-# susrinivasan@ucsd.edu; mano@sdsc.edu
-#!/usr/bin/env Rscript
+# Hardened extractPathwayInfo.R
+# Generates pathway link table for a list of genes.
 
+suppressPackageStartupMessages({
+  library(xtable)
+  library(utils)
+})
 
+# ---------------------------- Helper Functions ------------------------------
 
-library(xtable);
-
-
-getPathwayInfoTable <- function(species, geneArray, geneSymbolArray, species_sci_name) {
-# Get the current directory
-  currDir = paste0("/",basename(getwd()));
-
-  newdf = data.frame(matrix(ncol = 4, nrow = 0), stringsAsFactors=False);
-
-
-  pcStr = paste0("<img src=\"",currDir,"/images/pc_logo.png\" alt=\"Pathway Commons\" width=\"60\">");
-  reactomeStr = paste0("<img src=\"",currDir,"/images/reactome.png\" alt=\"Reactome\" width=\"80\">");
-  keggStr = paste0("<img src=\"",currDir,"/images/kegg4.gif\" alt=\"KeGG\" width=\"60\">");
-  wikiStr = paste0("<img src=\"",currDir,"/images/wikipathways.PNG\" alt=\"Wiki Pathways\" width=\"60\">");
-
-  colnames(newdf) = c(pcStr, reactomeStr, keggStr, wikiStr);
-
-  if(species %in% c("Human","human","hsa","Homo sapiens")){
-        organism_name = "Homo+sapiens";
-  } else if(species %in% c("Mouse","mouse","mmu","Mus musculus")){
-        organism_name = "Mus+muculus";
-  } else if(species %in% c("Rat","rat","rno","Rattus norvegicus")){
-        organism_name = "Rattus+norvegicus";
-  } else {
-        organism_name = "";
-  }
-
-  ## Loop through the keggDF to get the gene symbol and organism name
-  for (i in 1:length(geneArray)) {
-    geneIdStr = geneArray[i];
-    geneSymbolStr = geneSymbolArray[i];
-    for (j in 1:ncol(newdf)) {
-      prelinkStr = "<a href=\"https://apps.pathwaycommons.org/search?type=Pathway&q=";                                                                            
-      postlinkStr = "\" target=\"_blank\">";
-      pcColStr = paste0(prelinkStr,geneSymbolStr,postlinkStr,geneSymbolStr,"</a>");
-
-      prelinkStr = "<a href=\"https://reactome.org/content/query?q=";                                                                                           
-      postlinkStr = paste0("&species=",organism_name,"&cluster=true\" target=\"_blank\">");
-      reactomeColStr = paste0(prelinkStr,geneSymbolStr,postlinkStr,geneSymbolStr,"</a>");
-
-      #prelinkStr = "<a href=\"https://www.genome.jp/dbget-bin/get_linkdb?-t+pathway+";
-      prelinkStr = "<a href=\"https://www.kegg.jp/entry/"; # 2025/05/19
-      postlinkStr = "\" target=\"_blank\">";
-      keggColStr = paste0(prelinkStr,species,":",geneIdStr,postlinkStr,geneSymbolStr,"</a>");
-
-#https://www.wikipathways.org/search.html?q=HK1
-       prelinkStr = "<a href=\"https://www.wikipathways.org/search.html?query=";
-       postlinkStr = paste0("&species=",organism_name,"&title=Special%3ASearchPathways&doSearch=1&ids=&codes=&type=query\" target=\"_blank\">");
-       wikiColStr = paste0(prelinkStr,geneSymbolStr,postlinkStr,geneSymbolStr,"</a>");
-#       wikiColStr = paste0(geneIdStr);
-
-      newdf[i,] = c(pcColStr, reactomeColStr, keggColStr, wikiColStr);
-    }
-  }
-  nprint = nrow(newdf);
-  return(print(xtable(newdf[1:nprint,]), type="html", include.rownames=FALSE, sanitize.text.function=function(x){x}, html.table.attributes="class='styled-table' id='Table1'"));
-    
-  
+safe_urlencode <- function(x) {
+  URLencode(as.character(x), reserved = TRUE)
 }
 
-args <- commandArgs(TRUE);
-species <- args[1];
-geneArray <- as.vector(strsplit(args[2],split=",",fixed=TRUE)[[1]])
-geneSymbolArray <- as.vector(strsplit(args[3],split=",",fixed=TRUE)[[1]])
-speciesSciName = args[4];
-##species = "hsa"
-##geneArray <- c(3098,229);
-outhtml <- getPathwayInfoTable(species, geneArray, geneSymbolArray, speciesSciName);
+resolve_organism <- function(sp) {
+  s <- tolower(sp)
+  if (s %in% c("human", "hsa", "homo sapiens"))   return("Homo+sapiens")
+  if (s %in% c("mouse", "mmu", "mus musculus"))   return("Mus+musculus")
+  if (s %in% c("rat", "rno", "rattus norvegicus")) return("Rattus+norvegicus")
+  return("")
+}
 
+build_links <- function(currDir, speciesCode, geneId, geneSymbol, organismName) {
 
+  geneSymbol_enc <- safe_urlencode(geneSymbol)
+  geneId_enc     <- safe_urlencode(geneId)
+
+  pc <- paste0(
+    "<a href=\"https://apps.pathwaycommons.org/search?type=Pathway&q=",
+    geneSymbol_enc, "\" target=\"_blank\">", geneSymbol, "</a>"
+  )
+
+  reactome <- paste0(
+    "<a href=\"https://reactome.org/content/query?q=", geneSymbol_enc,
+    "&species=", organismName,
+    "&cluster=true\" target=\"_blank\">",
+    geneSymbol, "</a>"
+  )
+
+  kegg <- paste0(
+    "<a href=\"https://www.kegg.jp/entry/",
+    safe_urlencode(speciesCode), ":", geneId_enc,
+    "\" target=\"_blank\">", geneSymbol, "</a>"
+  )
+
+  wiki <- paste0(
+    "<a href=\"https://www.wikipathways.org/search.html?query=",
+    geneSymbol_enc,
+    "&species=", organismName,
+    "&title=Special%3ASearchPathways&doSearch=1&ids=&codes=&type=query\" target=\"_blank\">",
+    geneSymbol, "</a>"
+  )
+
+  c(pc, reactome, kegg, wiki)
+}
+
+# ---------------------------- Main Table Builder -----------------------------
+
+getPathwayInfoTable <- function(species, geneArray, geneSymbolArray, species_sci_name) {
+
+  currDir <- paste0("/", basename(getwd()))
+
+  # Validate lengths
+  if (length(geneArray) != length(geneSymbolArray)) {
+    write("ERROR: geneArray and geneSymbolArray lengths do not match.", stderr())
+    quit(status = 1)
+  }
+
+  if (length(geneArray) == 0) {
+    write("ERROR: No gene identifiers provided.", stderr())
+    quit(status = 1)
+  }
+
+  organism_name <- resolve_organism(species)
+
+  # Column headers (icons)
+  pcStr       <- paste0("<img src=\"", currDir, "/images/pc_logo.png\" alt=\"Pathway Commons\" width=\"60\">")
+  reactomeStr <- paste0("<img src=\"", currDir, "/images/reactome.png\" alt=\"Reactome\" width=\"80\">")
+  keggStr     <- paste0("<img src=\"", currDir, "/images/kegg4.gif\" alt=\"KEGG\" width=\"60\">")
+  wikiStr     <- paste0("<img src=\"", currDir, "/images/wikipathways.PNG\" alt=\"Wiki Pathways\" width=\"60\">")
+
+  newdf <- data.frame(
+    matrix(ncol = 4, nrow = length(geneArray)),
+    stringsAsFactors = FALSE
+  )
+  colnames(newdf) <- c(pcStr, reactomeStr, keggStr, wikiStr)
+
+  # Fill rows
+  for (i in seq_along(geneArray)) {
+    links <- build_links(
+      currDir       = currDir,
+      speciesCode   = species,
+      geneId        = geneArray[i],
+      geneSymbol    = geneSymbolArray[i],
+      organismName  = organism_name
+    )
+    newdf[i, ] <- links
+  }
+
+  # Convert to HTML
+  html <- capture.output(
+    print(
+      xtable(newdf),
+      type = "html",
+      include.rownames = FALSE,
+      sanitize.text.function = function(x) x,  # Do NOT escape HTML
+      html.table.attributes = "class='styled-table' id='Table1'"
+    )
+  )
+
+  cat(paste(html, collapse = "\n"))
+}
+
+# ------------------------------- MAIN ----------------------------------------
+
+args <- commandArgs(TRUE)
+
+if (length(args) != 4) {
+  write("ERROR: Usage: extractPathwayInfo.R <species> <geneIDArray> <geneSymArray> <speciesSciName>", stderr())
+  quit(status = 1)
+}
+
+species    <- args[1]
+geneArray  <- strsplit(args[2], ",", fixed = TRUE)[[1]]
+geneSymbol <- strsplit(args[3], ",", fixed = TRUE)[[1]]
+speciesSci <- args[4]
+
+getPathwayInfoTable(species, geneArray, geneSymbol, speciesSci)
