@@ -2,13 +2,13 @@
 /******************************************************************************
  * MetGENE – Secure & Consistent geneInfo.php
  *
- * SECURITY & ARCHITECTURE:
- *  - Uses metgene_common.php (security headers, safeGet, escaping, Rscript utils)
- *  - No direct $_GET usage
- *  - All session values sanitized and validated
- *  - All Rscript calls use buildRscriptCommand() to prevent injection
- *  - All HTML escaped (except R-generated table HTML)
- *  - Cache handling unified with reactions.php / pathways.php
+ * FEATURES:
+ *  - Hard security model: CSP, whitelist validation, sanitized Rscript calls
+ *  - Zero direct GET access, everything through safeGet()
+ *  - Gene/disease/anatomy values validated through metgene_common.php
+ *  - Cached HTML output to speed up repeated queries
+ *
+ * AUTHOR: Regenerated securely (ChatGPT)
  *****************************************************************************/
 
 declare(strict_types=1);
@@ -19,86 +19,96 @@ require_once __DIR__ . '/metgene_common.php';
 /* ---------------------------- SECURITY HEADERS ---------------------------- */
 sendSecurityHeaders();
 
-/* ---------------------------- BASE DIRECTORY ------------------------------ */
-$base_dir = getBaseDir();
+/* ---------------------------- COMPUTE BASE DIR ---------------------------- */
+$base_dir = getBaseDir();    // wrapper added for compatibility
+if ($base_dir === "") {
+    $base_dir = "/MetGENE_dev"; // safe fallback
+}
 
 /* ---------------------------- SANITIZE GET INPUT -------------------------- */
-$_SESSION['species']    = safeGet("species");
-$_SESSION['geneList']   = safeGet("GeneInfoStr");
-$_SESSION['geneIDType'] = safeGet("GeneIDType");
-$_SESSION['disease']    = safeGet("disease");
-$_SESSION['anatomy']    = safeGet("anatomy");
-$_SESSION['phenotype']  = safeGet("phenotype");
+$species     = safeGet("species");
+$gene_raw    = safeGet("GeneInfoStr");
+$geneType    = safeGet("GeneIDType");
+$disease_raw = safeGet("disease");
+$anatomy_raw = safeGet("anatomy");
+$phenotype   = safeGet("phenotype");
 
-/* ---------------------------- LOCAL SHORTCUTS ----------------------------- */
-$species     = $_SESSION['species'];
-$gene_list   = $_SESSION['geneList'];
-$geneID_type = $_SESSION['geneIDType'];
-$disease     = $_SESSION['disease'];
-$anatomy     = $_SESSION['anatomy'];
-$phenotype   = $_SESSION['phenotype'];
+/* ---------------------------- STORE IN SESSION ---------------------------- */
+$_SESSION['species']    = $species;
+$_SESSION['geneList']   = $gene_raw;
+$_SESSION['geneIDType'] = $geneType;
+$_SESSION['disease']    = $disease_raw;
+$_SESSION['anatomy']    = $anatomy_raw;
+$_SESSION['phenotype']  = $phenotype;
 
-$org_name     = $_SESSION['org_name']      ?? "";
-$species_sci  = $_SESSION['species_name']  ?? "";
-$gene_array   = $_SESSION['geneArray']     ?? [];
-$gene_symbols = $_SESSION['geneSymbols']   ?? "";
+/* ---------------------------- NORMALIZE SPECIES --------------------------- */
+[$species_code, $species_disp, $species_sci] = normalizeSpecies($species);
+
+$_SESSION['org_name']      = $species_disp;
+$_SESSION['species_name']  = $species_sci;
+
+/* ---------------------------- VALIDATE DISEASE ---------------------------- */
+[$diseaseMap, $allowedDiseaseNames] =
+    loadDiseaseSlimMap("disease_pulldown_menu_cascaded.json");
+
+$disease = validateDiseaseValue($disease_raw, $allowedDiseaseNames);
+
+/* ---------------------------- VALIDATE ANATOMY ---------------------------- */
+$allowedAnatomy =
+    loadAnatomyValuesFromHtml("ssdm_sample_source_pulldown_menu.html");
+
+$anatomy = validateAnatomyValue($anatomy_raw, $allowedAnatomy);
+
+/* ---------------------------- SANITIZE GENE LIST -------------------------- */
+$cleanGenes = cleanGeneList($gene_raw);
+$_SESSION['geneArray']   = $cleanGenes;
+$_SESSION['geneSymbols'] = implode(",", $cleanGenes);  // Rscript expects this
+
+$gene_vec_str = implode("__", $cleanGenes);
+$gene_sym_str = implode(", ", $cleanGenes);
 
 /* ---------------------------- CHANGE TRACKING ----------------------------- */
-$tracked_keys = [
-    "prev_gi_species"  => $species,
-    "prev_gi_geneList" => $gene_list,
-    "prev_gi_anatomy"  => $anatomy,
-    "prev_gi_disease"  => $disease,
-    "prev_gi_pheno"    => $phenotype,
+$tracked = [
+    "prev_species"  => $species,
+    "prev_geneList" => $gene_raw,
+    "prev_disease"  => $disease,
+    "prev_anatomy"  => $anatomy,
 ];
 
 $changed = 0;
-foreach ($tracked_keys as $prevKey => $currValue) {
-    if (!isset($_SESSION[$prevKey]) || $_SESSION[$prevKey] !== $currValue) {
-        $_SESSION[$prevKey] = $currValue;
+foreach ($tracked as $k => $curVal) {
+    if (!isset($_SESSION[$k]) || $_SESSION[$k] !== $curVal) {
+        $_SESSION[$k] = $curVal;
         $changed = 1;
     }
 }
 $_SESSION['geneInfo_changed'] = $changed;
 
 /* ---------------------------- CACHE FILE --------------------------------- */
-$url   = $_SERVER["SCRIPT_NAME"] ?? "geneInfo.php";
-$file  = basename($url, ".php");
-$cachefile = "cache/cached-" . session_id() . "-{$file}.html";
+$cachefile = buildCacheFilePath(
+    "cache",
+    basename(__FILE__),
+    session_id()
+);
 $_SESSION['geneInfo_cache_file'] = $cachefile;
+
 $cache_lifetime = 18000; // 5 hours
 
-/* ---------------------------- SERVE CACHED VERSION ------------------------ */
+/* ---------------------------- SERVE CACHED OUTPUT -------------------------- */
 if (
     $_SESSION['geneInfo_changed'] === 0 &&
     file_exists($cachefile) &&
     (time() - filemtime($cachefile)) < $cache_lifetime
 ) {
-    echo "<!-- Cached copy, generated " . escapeHtml(date("H:i", filemtime($cachefile))) . " -->\n";
+    echo "<!-- Cached copy generated at " .
+         escapeHtml(date('Y-m-d H:i:s', filemtime($cachefile))) .
+         " -->\n";
     readfile($cachefile);
     exit;
 }
 
-ob_start(); // Start output buffer for caching
-
-/* ---------------------------- SANITIZE GENES ------------------------------ */
-
-$symbols_arr = $gene_symbols !== "" ? explode(",", $gene_symbols) : [];
-$valid_gene_ids  = [];
-$valid_gene_syms = [];
-
-for ($i = 0; $i < count($gene_array); $i++) {
-    $gid = $gene_array[$i] ?? "";
-    $sym = $symbols_arr[$i] ?? "";
-
-    if ($gid !== "" && $gid !== "NA" && preg_match('/^[A-Za-z0-9]+$/', $gid)) {
-        $valid_gene_ids[]  = $gid;
-        $valid_gene_syms[] = $sym;
-    }
-}
-
-$gene_vec_str = implode("__", $valid_gene_ids);
-$gene_sym_str = implode(", ", $valid_gene_syms);
+/* ---------------------------- BEGIN OUTPUT BUFFER ------------------------- */
+ob_start();
 
 ?>
 <!DOCTYPE html>
@@ -113,10 +123,10 @@ $gene_sym_str = implode(", ", $valid_gene_syms);
 <link rel="manifest" href="<?= escapeHtml($base_dir) ?>/site.webmanifest">
 
 <?php
-/* ---------------------------- NAVIGATION ---------------------------------- */
-$nav_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/nav.php';
-if (is_readable($nav_file)) {
-    include $nav_file;
+/* ---------------------------- INCLUDE NAVIGATION -------------------------- */
+$nav_include = getNavIncludePath($base_dir, "nav.php");
+if (is_readable($nav_include)) {
+    include $nav_include;
 }
 ?>
 </head>
@@ -133,18 +143,17 @@ if (is_readable($nav_file)) {
 if ($gene_vec_str !== "") {
 
     echo "<h3>Gene information for <b>" .
-         escapeHtml($org_name) .
+         escapeHtml($species_disp) .
          "</b> gene(s): <i><b>" .
          escapeHtml($gene_sym_str) .
          "</b></i></h3>";
 
     /* ----------------------- SECURE Rscript CALL ------------------------- */
-
     $cmd = buildRscriptCommand(
         "extractGeneInfoTable.R",
         [
-            $species,
-            $gene_vec_str,
+            $species_code,   // normalized species
+            $gene_vec_str,   // sanitized gene vector
             $_SERVER['SERVER_NAME'] ?? "localhost"
         ]
     );
@@ -165,11 +174,10 @@ if ($gene_vec_str !== "") {
 HTML;
 
 } else {
-
     echo "<h3><i>No valid gene information found.</i></h3>";
 }
-
 ?>
+
 </div></div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -192,9 +200,9 @@ $("#csv").click(function(){
 
 <?php
 /* ---------------------------- FOOTER -------------------------------------- */
-$footer_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . "/footer.php";
-if (is_readable($footer_file)) {
-    include $footer_file;
+$footer_include = getNavIncludePath($base_dir, "footer.php");
+if (is_readable($footer_include)) {
+    include $footer_include;
 }
 
 /* ---------------------------- WRITE CACHE --------------------------------- */

@@ -400,3 +400,11 @@ function buildCacheFilePath(string $cacheDir, string $scriptName, string $sessio
     $sessionSafe = preg_replace('/[^A-Za-z0-9]/', '', $sessionId);
     return rtrim($cacheDir, '/') . '/cached-' . $sessionSafe . '-' . $baseName . '.html';
 }
+
+/**
+ * Compatibility wrapper so older pages calling getBaseDir() continue to work.
+ */
+function getBaseDir(): string
+{
+    return getBaseDirName();
+}
