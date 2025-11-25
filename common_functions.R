@@ -28,24 +28,44 @@ suppressPackageStartupMessages({
 #   org_name   : "Human" | "Mouse" | "Rat"
 #   sci_name   : "Homo sapiens" | "Mus musculus" | "Rattus norvegicus"
 # --------------------------------------------------------------------
-normalize_species <- function(species_raw) {
-  human <- c("Human", "human", "hsa", "Homo sapiens")
-  mouse <- c("Mouse", "mouse", "mmu", "Mus musculus")
-  rat   <- c("Rat", "rat", "rno", "Rattus norvegicus")
+normalize_species <- function(species) {
 
-  if (species_raw %in% human) {
-    return(list(code = "hsa", org_name = "Human", sci_name = "Homo sapiens"))
-  }
-  if (species_raw %in% mouse) {
-    return(list(code = "mmu", org_name = "Mouse", sci_name = "Mus musculus"))
-  }
-  if (species_raw %in% rat) {
-    return(list(code = "rno", org_name = "Rat", sci_name = "Rattus norvegicus"))
-  }
+    species <- trimws(species)
 
-  # Sensible default: Human / hsa
-  list(code = "hsa", org_name = "Human", sci_name = "Homo sapiens")
+    human <- c("Human","human","hsa","Homo sapiens","Homo sapiens (Human)")
+    mouse <- c("Mouse","mouse","mmu","Mus musculus","Mus musculus (Mouse)")
+    rat   <- c("Rat","rat","rno","Rattus norvegicus","Rattus norvegicus (Rat)")
+
+    if (species %in% human) {
+        return(list(
+            species_code = "hsa",
+            species_label = "Human",
+            species_scientific = "Homo sapiens"
+        ))
+    }
+    if (species %in% mouse) {
+        return(list(
+            species_code = "mmu",
+            species_label = "Mouse",
+            species_scientific = "Mus musculus"
+        ))
+    }
+    if (species %in% rat) {
+        return(list(
+            species_code = "rno",
+            species_label = "Rat",
+            species_scientific = "Rattus norvegicus"
+        ))
+    }
+
+    # Default: human
+    return(list(
+        species_code = "hsa",
+        species_label = "Human",
+        species_scientific = "Homo sapiens"
+    ))
 }
+
 
 # --------------------------------------------------------------------
 # Gene ID sanitization
