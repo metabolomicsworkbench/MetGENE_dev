@@ -11,14 +11,26 @@
  *      • safe base directory resolution
  *  - Removes XSS vectors in links
  *  - Ensures all dynamic HTML attributes are escaped
+ *  - Validates all file paths and includes
  ******************************************************************************/
 
 declare(strict_types=1);
 
-require_once __DIR__ . "/metgene_common.php";
+// SECURITY FIX: Check if metgene_common.php is already loaded
+if (!function_exists('getBaseDirName')) {
+    require_once __DIR__ . "/metgene_common.php";
+}
 
+// SECURITY FIX: Proper session handling
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
+}
+
+// SECURITY FIX: Define esc() wrapper for convenience
+if (!function_exists('esc')) {
+    function esc(string $v): string {
+        return escapeHtml($v);
+    }
 }
 
 /* --------------------------- LOAD SAFE SESSION VALUES ---------------------- */
@@ -31,6 +43,7 @@ $anatomy    = $_SESSION['anatomy']    ?? "NA";
 $phenotype  = $_SESSION['phenotype']  ?? "NA";
 
 /* ------------------------------- Base path -------------------------------- */
+// SECURITY FIX: Use getBaseDirName() for consistency (removes trailing slash)
 $base = getBaseDirName();
 
 /* ------------------------- Build Terms & Contact URLs ---------------------- */
@@ -50,13 +63,6 @@ $contactUrl = buildInternalUrl($base, "contact.php",   $footerParams);
 $resetUrl = buildInternalUrl($base, "index.php");
 
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-</head>
-<body>
-
 <div id="constrain">
 <div class="constrain">
 
@@ -64,16 +70,16 @@ $resetUrl = buildInternalUrl($base, "index.php");
 
     <ul class="journal-details">
         <li class="last">
-            <a href="<?php echo escapeHtml($resetUrl); ?>">
-                <img src="<?php echo escapeHtml($base); ?>/images/Reset_Btn.png"
+            <a href="<?= esc($resetUrl) ?>">
+                <img src="<?= esc($base) ?>/images/Reset_Btn.png"
                      alt="Reset" width="125">
             </a>
         </li>
     </ul>
 
     <ul class="footer-links">
-        <li><a href="<?php echo escapeHtml($termsUrl); ?>">Terms of use</a></li>
-        <li><a href="<?php echo escapeHtml($contactUrl); ?>">Contact</a></li>
+        <li><a href="<?= esc($termsUrl) ?>">Terms of use</a></li>
+        <li><a href="<?= esc($contactUrl) ?>">Contact</a></li>
     </ul>
 
     <span class="cleardiv"></span>
@@ -85,15 +91,15 @@ $resetUrl = buildInternalUrl($base, "index.php");
     <td>&nbsp;</td>
 
     <td style="vertical-align:middle; width:60px;">
-        <a href="https://www.ucsd.edu/" target="_blank">
-            <img src="<?php echo escapeHtml($base); ?>/images/ucsd_logo.png"
+        <a href="https://www.ucsd.edu/" target="_blank" rel="noopener noreferrer">
+            <img src="<?= esc($base) ?>/images/ucsd_logo.png"
                  alt="UCSD" width="80">
         </a>
     </td>
 
     <td style="vertical-align:middle; width:60px;">
-        <a href="https://commonfund.nih.gov/dataecosystem" target="_blank">
-            <img src="<?php echo escapeHtml($base); ?>/images/CFDEtransparent.png"
+        <a href="https://commonfund.nih.gov/dataecosystem" target="_blank" rel="noopener noreferrer">
+            <img src="<?= esc($base) ?>/images/CFDEtransparent.png"
                  alt="CFDE" width="80">
         </a>
     </td>
@@ -116,6 +122,3 @@ $resetUrl = buildInternalUrl($base, "index.php");
 
 </div>
 </div>
-
-</body>
-</html>

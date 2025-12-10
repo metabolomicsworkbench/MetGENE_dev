@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # This script generates a table of gene information (NCBI, GeneCards, KEGG, Uniprot, Marrvel).
-# Call Syntax : RScript extractGeneInfoTable.R <species> <geneIDArray> <domainName>
+# Call Syntax : Rscript extractGeneInfoTable.R <species> <geneIDArray> <domainName>
 # Input  : species (e.g. hsa, mmu)
 #        : geneArray (string of ENTREZ IDs, e.g. "3098,6120")
 #        : domainName (e.g. bcdw.org)
@@ -16,17 +16,17 @@ suppressPackageStartupMessages({
 # ----------------------------- Helpers --------------------------------------
 
 build_geneinfo_url <- function(domain, species, geneArray) {
-  GeneIDType          <- "ENTREZID"
-  USE_NCBI_GENE_INFO  <- 0
-  ViewType            <- "json"
-  IncHTML             <- 1
+  GeneIDType <- "ENTREZID"
+  USE_NCBI_GENE_INFO <- 0
+  ViewType <- "json"
+  IncHTML <- 1
 
-  species_enc   <- URLencode(species, reserved = TRUE)
+  species_enc <- URLencode(species, reserved = TRUE)
   geneArray_enc <- URLencode(geneArray, reserved = TRUE)
 
   paste0(
     "https://", domain,
-    "/geneid/geneid_proc_selcol_GET.php",
+    "/dev/geneid/geneid_proc_selcol_GET.php", # remove dev for production code
     "?species=", species_enc,
     "&GeneListStr=", geneArray_enc,
     "&GeneIDType=", GeneIDType,
@@ -37,7 +37,6 @@ build_geneinfo_url <- function(domain, species, geneArray) {
 }
 
 getGeneInfoTable <- function(orgStr, geneArray, domainName) {
-
   # resolve a relative path for images based on current working directory
   currDir <- paste0("/", basename(getwd()))
 
@@ -104,13 +103,13 @@ getGeneInfoTable <- function(orgStr, geneArray, domainName) {
   n <- nrow(GeneAllInfo_forhtml)
   outdf <- data.frame(matrix(ncol = 7, nrow = n), stringsAsFactors = FALSE)
 
-  symbolStr   <- "Symbol"
-  keggStr     <- paste0("<img src=\"", currDir, "/images/kegg4.gif\" alt=\"KEGG\" width=\"60\">")
-  geneCardsStr<- paste0("<img src=\"", currDir, "/images/logo_genecards.png\" alt=\"Gene Cards\" width=\"60\">")
-  ncbiStr     <- paste0("<img src=\"", currDir, "/images/NCBILogo.gif\" alt=\"NCBI\" width=\"60\">")
-  ensemblStr  <- paste0("<img src=\"", currDir, "/images/ensembl_logo.png\" alt=\"Ensembl\" width=\"60\">")
-  uniprotStr  <- paste0("<img src=\"", currDir, "/images/Uniprot.png\" alt=\"Uniprot\" style=\"background-color:gray;padding:20px;\" width=\"60\">")
-  marrvelStr  <- paste0("<img src=\"", currDir, "/images/marrvel.png\" alt=\"Marrvel\" width=\"60\">")
+  symbolStr <- "Symbol"
+  keggStr <- paste0("<img src=\"", currDir, "/images/kegg4.gif\" alt=\"KEGG\" width=\"60\">")
+  geneCardsStr <- paste0("<img src=\"", currDir, "/images/logo_genecards.png\" alt=\"Gene Cards\" width=\"60\">")
+  ncbiStr <- paste0("<img src=\"", currDir, "/images/NCBILogo.gif\" alt=\"NCBI\" width=\"60\">")
+  ensemblStr <- paste0("<img src=\"", currDir, "/images/ensembl_logo.png\" alt=\"Ensembl\" width=\"60\">")
+  uniprotStr <- paste0("<img src=\"", currDir, "/images/Uniprot.png\" alt=\"Uniprot\" style=\"background-color:gray;padding:20px;\" width=\"60\">")
+  marrvelStr <- paste0("<img src=\"", currDir, "/images/marrvel.png\" alt=\"Marrvel\" width=\"60\">")
 
   colnames(outdf) <- c(symbolStr, keggStr, geneCardsStr, ncbiStr, ensemblStr, uniprotStr, marrvelStr)
 
@@ -150,8 +149,8 @@ if (length(args) != 3) {
   quit(status = 1)
 }
 
-species    <- args[1]
-geneArray  <- args[2]
+species <- args[1]
+geneArray <- args[2]
 domainName <- args[3]
 
 getGeneInfoTable(species, geneArray, domainName)

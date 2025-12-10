@@ -116,10 +116,14 @@ if ($viewType === 'json' || $viewType === 'txt') {
         exit;
     }
 
-    // Filename for R-generated plot(s)
-    $prefix   = 'cache/plot';
-    $suffix   = '.png';
-    $filename = $prefix . mt_rand(1, 1000000) . $suffix;
+    // SECURITY FIX: R script expects relative path from MetGENE root
+    $cache_dir = __DIR__ . '/cache';
+    if (!is_dir($cache_dir)) {
+        @mkdir($cache_dir, 0755, true);
+    }
+
+    $plot_basename = 'plot' . mt_rand(1, 1000000) . '.png';
+    $filename = 'cache/' . $plot_basename;  // R script needs relative path "cache/plot.png"
 
     // Encode filters (fall back to NA as in original code)
     $anatomyEnc = rawurlencode($anatomyRaw !== '' ? $anatomyRaw : 'NA');
@@ -142,6 +146,12 @@ if ($viewType === 'json' || $viewType === 'txt') {
     $output = [];
     $ret    = 0;
     exec($cmdSummary, $output, $ret);
+
+    // SECURITY FIX: Ensure plot file is readable
+    $abs_filename = __DIR__ . '/' . $filename;
+    if (file_exists($abs_filename)) {
+        @chmod($abs_filename, 0644);
+    }
 
     if ($viewType === 'json') {
         header('Content-Type: application/json; charset=UTF-8');
@@ -196,7 +206,10 @@ if ($_SESSION['prev_summary_species'] !== $species) {
 /* ------------------------- CACHE HANDLING --------------------------------- */
 $url       = $_SERVER['SCRIPT_NAME'] ?? 'summary.php';
 $file      = basename($url, '.php');
-$cachefile = 'cache/cached-' . session_id() . '-' . $file . '.html';
+
+// SECURITY FIX: Sanitize session ID and use absolute path
+$safeSession = preg_replace('/[^A-Za-z0-9]/', '', session_id());
+$cachefile = __DIR__ . '/cache/cached-' . $safeSession . '-' . $file . '.html';
 $_SESSION['summary_cache_file'] = $cachefile;
 $cachetime = 18000; // 5 hours
 
@@ -241,10 +254,15 @@ $disease_str = $disease !== '' ? $disease : 'NA';
 $anatomyEnc = rawurlencode($anatomy_str);
 $diseaseEnc = rawurlencode($disease_str);
 
-// Plot filename (as in original)
-$prefix   = 'cache/plot';
-$suffix   = '.png';
-$filename = $prefix . mt_rand(1, 1000000) . $suffix;
+// SECURITY FIX: R script expects relative path from MetGENE root
+$cache_dir = __DIR__ . '/cache';
+if (!is_dir($cache_dir)) {
+    @mkdir($cache_dir, 0755, true);
+}
+
+$plot_basename = 'plot' . mt_rand(1, 1000000) . '.png';
+$filename = 'cache/' . $plot_basename;  // R script needs relative path "cache/plot.png"
+$plot_url = $base_dir . '/cache/' . $plot_basename;  // Web URL for browser
 $viewMode = 'all';   // original "all" summary mode
 ?>
 <!DOCTYPE html>
@@ -292,9 +310,9 @@ $viewMode = 'all';   // original "all" summary mode
 </style>
 
 <?php
-// Navigation
-$nav_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/nav.php';
-if (is_readable($nav_file)) {
+// SECURITY FIX: Validate nav.php path with realpath
+$nav_file = realpath(__DIR__ . '/nav.php');
+if ($nav_file !== false && strpos($nav_file, __DIR__) === 0 && is_readable($nav_file)) {
     include $nav_file;
 }
 ?>
@@ -367,6 +385,26 @@ if ($gene_array_str !== '') {
     $ret    = 0;
     exec($cmdSummaryHtml, $output, $ret);
 
+    // SECURITY FIX: Ensure plot file is readable and fix path in output
+    $abs_filename = __DIR__ . '/' . $filename;  // Convert to absolute for file operations
+    if (file_exists($abs_filename)) {
+        @chmod($abs_filename, 0644);
+        
+        // The R script generates paths like: src=/MetGENE/cache/plot.png
+        // We need to replace with the correct base_dir for dev/prod
+        // In dev: src=/dev/MetGENE/cache/plot.png
+        // In prod: src=/MetGENE/cache/plot.png
+        $output = array_map(function($line) use ($filename, $plot_url) {
+            // Replace R's hardcoded /MetGENE/ prefix with our dynamic base_dir
+            $line = str_replace('src=/MetGENE/' . $filename, 'src=' . $plot_url, $line);
+            $line = str_replace('src=' . $filename, 'src=' . $plot_url, $line);
+            // Also fix href in download link
+            $line = str_replace('href="/MetGENE/' . $filename, 'href="' . $plot_url, $line);
+            $line = str_replace('href="' . $filename, 'href="' . $plot_url, $line);
+            return $line;
+        }, $output);
+    }
+
     // DO NOT escape this; it's real HTML from R needed by tableHTMLExport
     echo implode("\n", $output);
 
@@ -381,41 +419,29 @@ if ($gene_array_str !== '') {
 </div>
 </div>
 
+<!-- Load scripts from external files -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="<?= escapeHtml($base_dir) ?>/src/tableHTMLExport.js"></script>
-<script>
-  $('#json').on('click', function () {
-      // Original intention: export #Table1 to JSON
-      $('#Table1').tableHTMLExport({
-          type: 'json',
-          filename: 'Summary.json'
-      });
-  });
-
-  $('#csv').on('click', function () {
-      // Original intention: export #Table1 to CSV
-      $('#Table1').tableHTMLExport({
-          type: 'csv',
-          filename: 'Summary.csv'
-      });
-  });
-</script>
+<script src="<?= escapeHtml($base_dir) ?>/js/summary-export.js"></script>
 
 <?php
-// Footer
-$footer_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/footer.php';
-if (is_readable($footer_file)) {
+// SECURITY FIX: Validate footer.php path with realpath
+$footer_file = realpath(__DIR__ . '/footer.php');
+if ($footer_file !== false && strpos($footer_file, __DIR__) === 0 && is_readable($footer_file)) {
     include $footer_file;
 }
 
-// Cache the rendered HTML
+// SECURITY FIX: Add error handling for cache write
 if (!is_dir(dirname($cachefile))) {
     @mkdir(dirname($cachefile), 0755, true);
 }
 $cached = @fopen($cachefile, 'w');
-if ($cached) {
+if ($cached !== false) {
     fwrite($cached, ob_get_contents());
     fclose($cached);
+    @chmod($cachefile, 0640); // Restrict permissions
+} else {
+    error_log("Failed to write cache file: $cachefile");
 }
 ob_end_flush();
 ?>

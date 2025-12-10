@@ -31,8 +31,8 @@ suppressPackageStartupMessages({
   library(plyr)
 })
 
-# Load validation + normalization helpers
-source("common_functions.R")
+# SECURITY: Load centralized validation + normalization helpers
+source("metgene_common.R")
 
 # set flag for precompute
 source("setPrecompute.R")
@@ -53,65 +53,85 @@ getRxnsContainingMetabolite <- function(rxnList, metdf) {
 # Helper: retrieve KEGG reactions + compounds for one gene
 ###############################################################
 getRxnIDsAndCpdIDsFromKEGG <- function(queryStr) {
-  kegg_data <- keggGet(queryStr)
+  kegg_data <- tryCatch(
+    keggGet(queryStr),
+    error = function(e) {
+      stop("KEGG query failed for ", queryStr, ": ", e$message, call. = FALSE)
+    }
+  )
 
   if (length(kegg_data) == 0 || is.null(kegg_data[[1]]$ORTHOLOGY)) {
-    stop("Invalid KEGG entry or no ORTHOLOGY information found.")
+    stop("Invalid KEGG entry or no ORTHOLOGY information found for ", queryStr, call. = FALSE)
   }
 
   enzyme <- kegg_data[[1]]$ORTHOLOGY[[1]]
 
   ec_number <- regmatches(enzyme, regexpr("EC:\\d+\\.\\d+\\.\\d+\\.\\d+", enzyme))
-  if (length(ec_number) == 0) stop("No EC number found in ORTHOLOGY field.")
+  if (length(ec_number) == 0) {
+    stop("No EC number found in ORTHOLOGY field for ", queryStr, call. = FALSE)
+  }
 
   ec_number <- tolower(ec_number)
 
-  rxns <- keggLink("reaction", ec_number)
-  rxn_vec <- unname(as.vector(rxns))
-  rxn_df <- data.frame(Type = paste("reaction", seq_along(rxn_vec)),
-                       ID = rxn_vec,
-                       stringsAsFactors = FALSE)
+  rxns <- tryCatch(
+    keggLink("reaction", ec_number),
+    error = function(e) {
+      stop("keggLink(reaction) failed for ", ec_number, ": ", e$message, call. = FALSE)
+    }
+  )
 
-  cpds <- keggLink("compound", ec_number)
+  rxn_vec <- unname(as.vector(rxns))
+  rxn_df <- data.frame(
+    Type = paste("reaction", seq_along(rxn_vec)),
+    ID = rxn_vec,
+    stringsAsFactors = FALSE
+  )
+
+  cpds <- tryCatch(
+    keggLink("compound", ec_number),
+    error = function(e) {
+      stop("keggLink(compound) failed for ", ec_number, ": ", e$message, call. = FALSE)
+    }
+  )
+
   cpd_vec <- unname(as.vector(cpds))
-  cpd_df <- data.frame(Type = paste("compound", seq_along(cpd_vec)),
-                       ID = cpd_vec,
-                       stringsAsFactors = FALSE)
+  cpd_df <- data.frame(
+    Type = paste("compound", seq_along(cpd_vec)),
+    ID = cpd_vec,
+    stringsAsFactors = FALSE
+  )
 
   rbind(rxn_df, cpd_df)
 }
 
 ###############################################################
-# Main extraction function (HARDENED)
+# Main extraction function (SECURITY HARDENED)
 ###############################################################
 getMetaboliteInfoTable <- function(species_raw,
                                    geneIdStr_raw,
                                    anatomyStr_raw,
                                    diseaseStr_raw,
                                    viewType_raw) {
-
   # ---------------------------
-  # Normalize species (PHP-like)
+  # SECURITY: Normalize species (PHP-like)
   # ---------------------------
   sp <- normalize_species(species_raw)
-  species        <- sp$species_code     # hsa/mmu/rno
-  organism_name  <- sp$species_label    # Human/Mouse/Rat
+  species <- sp$species_code # hsa/mmu/rno
+  organism_name <- sp$species_label # Human/Mouse/Rat
 
   # ---------------------------
-  # Load curated validation lists
+  # SECURITY: Load curated validation lists
   # ---------------------------
   allowed_diseases <- load_allowed_diseases("disease_pulldown_menu_cascaded.json")
-  allowed_anatomy  <- load_allowed_anatomy("ssdm_sample_source_pulldown_menu.html")
+  allowed_anatomy <- load_allowed_anatomy("ssdm_sample_source_pulldown_menu.html")
 
   # ---------------------------
-  # Sanitize gene ID
+  # SECURITY: Sanitize gene ID (using validate_entrez_ids for strict validation)
   # ---------------------------
-  gene_ids <- sanitize_gene_ids(geneIdStr_raw)
-  if (length(gene_ids) == 0) stop("No valid gene ID provided.")
-  geneIdStr <- gene_ids[[1]]
+  geneIdStr <- validate_entrez_ids(geneIdStr_raw)
 
   # ---------------------------
-  # Validate disease / anatomy
+  # SECURITY: Validate disease / anatomy
   # ---------------------------
   diseaseStr <- validate_disease(diseaseStr_raw, allowed_diseases)
   anatomyStr <- validate_anatomy(anatomyStr_raw, allowed_anatomy)
@@ -120,9 +140,11 @@ getMetaboliteInfoTable <- function(species_raw,
   if (identical(anatomyStr, "NA")) anatomyStr <- ""
 
   # ---------------------------
-  # Output type
+  # SECURITY: Validate output type
   # ---------------------------
-  vtFlag <- tolower(as.character(viewType_raw[[1]]))
+  viewType <- safe_view_type(viewType_raw)
+
+  # SECURITY: Safe current directory reference
   currDir <- paste0("/", basename(getwd()))
 
   # ---------------------------
@@ -150,8 +172,8 @@ getMetaboliteInfoTable <- function(species_raw,
   queryStr <- paste0(species, ":", geneIdStr)
 
   if (preCompute == 1) {
-    rdsFilename <- paste0("./data/", species, "_keggLink_mg.RDS")
-    all_df <- readRDS(rdsFilename)
+    # SECURITY: Use safe_read_rds from metgene_common.R
+    all_df <- safe_read_rds(species, "_keggLink_mg.RDS", base_dir = "data")
     df <- subset(all_df, org_ezid == queryStr)
   } else {
     df <- getRxnIDsAndCpdIDsFromKEGG(queryStr)
@@ -163,20 +185,48 @@ getMetaboliteInfoTable <- function(species_raw,
   metabList <- gsub("cpd:", "", cpds)
   reactionsList <- gsub("rn:", "", rxns)
 
-  # Prepare strings for MW REST
-  anatomyQryStr <- ifelse(str_detect(anatomyStr, " "), str_replace_all(anatomyStr, " ", "+"), anatomyStr)
-  diseaseQryStr <- ifelse(str_detect(diseaseStr, " "), str_replace_all(diseaseStr, " ", "+"), diseaseStr)
+  # SECURITY: URL encode anatomy and disease for MW REST API
+  # Note: MW REST API uses + for spaces, %2b for literal +
+  anatomyQryStr <- anatomyStr
+  if (anatomyStr != "" && str_detect(anatomyStr, " ")) {
+    anatomyQryStr <- str_replace_all(anatomyStr, " ", "+")
+  }
+
+  diseaseQryStr <- diseaseStr
+  if (diseaseStr != "" && str_detect(diseaseStr, " ")) {
+    diseaseQryStr <- str_replace_all(diseaseStr, " ", "+")
+  }
 
   # ---------------------------
   # Retrieve KEGG compound metadata
   # ---------------------------
   if (preCompute == 1) {
-    rdsfilename <- paste0("./data/", species, "_keggGet_cpdInfo.RDS")
-    cpdInfodf <- readRDS(rdsfilename)
+    # SECURITY: Use safe_read_rds from metgene_common.R
+    cpdInfodf <- safe_read_rds(species, "_keggGet_cpdInfo.RDS", base_dir = "data")
     metRespdf <- cpdInfodf[rownames(cpdInfodf) %in% metabList, ]
   } else {
     query_split <- split(metabList, ceiling(seq_along(metabList) / 10))
-    info <- llply(query_split, function(x) keggGet(x))
+
+    info <- llply(query_split, function(x) {
+      tryCatch(
+        keggGet(x),
+        error = function(e) {
+          warning(
+            "keggGet failed for compounds: ", paste(x, collapse = ", "),
+            " - ", e$message
+          )
+          return(NULL)
+        }
+      )
+    })
+
+    # Filter out NULL results from failed queries
+    info <- Filter(Negate(is.null), info)
+
+    if (length(info) == 0) {
+      stop("Failed to retrieve any compound information from KEGG", call. = FALSE)
+    }
+
     unlist_info <- unlist(info, recursive = FALSE)
     extract_info <- lapply(unlist_info, "[", c("ENTRY", "NAME", "REACTION"))
     dd <- do.call(rbind, extract_info)
@@ -188,14 +238,19 @@ getMetaboliteInfoTable <- function(species_raw,
   # Compute per-metabolite results
   # ---------------------------
   if (length(metabList) > 0) {
-
     allrefmetDF <- refmet_convert_fun(as.data.frame(metabList))
 
     for (m in seq_along(metabList)) {
       metabStr <- metabList[[m]]
 
-      metabURLStr <- paste0("<a href=\"https://www.kegg.jp/entry/", metabStr,
-                            "\" target=\"__blank\">", metabStr, "</a>")
+      # SECURITY: Escape metabolite ID for HTML
+      metabURLStr <- paste0(
+        "<a href=\"https://www.kegg.jp/entry/",
+        html_escape(metabStr),
+        "\" target=\"_blank\">",
+        html_escape(metabStr),
+        "</a>"
+      )
 
       metqryDF <- metRespdf[grep(metabStr, rownames(metRespdf)), ]
       metabRxns <- getRxnsContainingMetabolite(reactionsList, metqryDF)
@@ -206,31 +261,35 @@ getMetaboliteInfoTable <- function(species_raw,
       # (A) RefMet matches exist
       # -------------------------------------------
       if (!is.null(mwDF) && nrow(mwDF) > 0) {
-
         refmetIdVals <- unique(mwDF$Standardized.name)
 
         for (refmetId in refmetIdVals) {
+          # SECURITY: URL encode RefMet name for MW URLs
+          refmetQryStr <- gsub("\\+", "%2b", refmetId, fixed = FALSE)
+          refmetQryStr <- gsub(" ", "+", refmetQryStr, fixed = TRUE)
 
-          refmetQryStr <- gsub("\\+", "%2b", refmetId)
-          refmetQryStr <- gsub(" ", "+", refmetQryStr)
-
+          # SECURITY: Escape RefMet name for HTML display
           refmetName <- paste0(
             "<a href=\"https://www.metabolomicsworkbench.org/databases/refmet/refmet_details.php?REFMET_NAME=",
             refmetQryStr,
             "\" target=\"_blank\"> ",
-            refmetId,
+            html_escape(refmetId),
             "</a>"
           )
 
           metabRxnsStr <- paste(metabRxns, collapse = ", ")
 
-          rxnsURLs <- paste0("<a href=\"https://www.genome.jp/entry/rn:",
-                             metabRxns,
-                             "\" target=\"_blank\">",
-                             metabRxns,
-                             "</a>")
+          # SECURITY: Escape reaction IDs for HTML
+          rxnsURLs <- paste0(
+            "<a href=\"https://www.genome.jp/entry/rn:",
+            html_escape(metabRxns),
+            "\" target=\"_blank\">",
+            html_escape(metabRxns),
+            "</a>"
+          )
           rxnsURLStr <- paste(rxnsURLs, collapse = ", ")
 
+          # Build MetStat link
           metStatLink <- paste0(
             "http://www.metabolomicsworkbench.org/data/metstat_hist.php?NAME_PREP1=Is",
             "&refmet_name_search=", refmetQryStr,
@@ -240,10 +299,11 @@ getMetaboliteInfoTable <- function(species_raw,
             "&SOURCE=", anatomyQryStr
           )
 
+          # SECURITY: Escape metStatLink for HTML attribute
           metStatStr <- paste0(
-            "<a href=\"", metStatLink,
+            "<a href=\"", html_escape(metStatLink),
             "&rows_to_display=1\" target=\"_blank\">",
-            "<img src=\"", currDir,
+            "<img src=\"", html_escape(currDir),
             "/images/statSymbolIcon.png\" alt=\"metstat\" width=\"30\"></a>"
           )
 
@@ -253,7 +313,6 @@ getMetaboliteInfoTable <- function(species_raw,
           jsonDF[nrow(jsonDF) + 1, ] <-
             c(metabStr, refmetId, metabRxnsStr, metStatLink)
         }
-
       } else {
         # -------------------------------------------
         # (B) No RefMet match → fallback to KEGG name
@@ -261,15 +320,25 @@ getMetaboliteInfoTable <- function(species_raw,
         refName <- unique(metqryDF$NAME)
         refName <- gsub(";$", "", refName)
 
-        refmetName <- paste0("<a href=\"https://www.genome.jp/entry/cpd:",
-                             metabStr, "\" target=\"_blank\"> ",
-                             refName, "</a>")
+        # SECURITY: Escape KEGG compound name for HTML
+        refmetName <- paste0(
+          "<a href=\"https://www.genome.jp/entry/cpd:",
+          html_escape(metabStr),
+          "\" target=\"_blank\"> ",
+          html_escape(refName),
+          "</a>"
+        )
 
         metabRxnsStr <- paste(metabRxns, collapse = ", ")
 
-        rxnsURLs <- paste0("<a href=\"https://www.genome.jp/entry/rn:",
-                           metabRxns, "\" target=\"_blank\">",
-                           metabRxns, "</a>")
+        # SECURITY: Escape reaction IDs for HTML
+        rxnsURLs <- paste0(
+          "<a href=\"https://www.genome.jp/entry/rn:",
+          html_escape(metabRxns),
+          "\" target=\"_blank\">",
+          html_escape(metabRxns),
+          "</a>"
+        )
         rxnsURLStr <- paste(rxnsURLs, collapse = ", ")
 
         metabRxnList[nrow(metabRxnList) + 1, ] <-
@@ -284,43 +353,74 @@ getMetaboliteInfoTable <- function(species_raw,
   # ---------------------------
   # Output section
   # ---------------------------
-  if (vtFlag %in% c("json", "jsonfile")) {
+  if (viewType %in% c("json", "jsonfile")) {
     newDF <- cbind(Gene = geneIdStr, jsonDF)
     metabJson <- toJSON(x = newDF, pretty = TRUE)
     return(cat(metabJson))
   }
 
-  if (vtFlag == "txt") {
+  if (viewType == "txt") {
     newDF <- cbind(Gene = geneIdStr, jsonDF)
     return(cat(format_csv(newDF)))
   }
 
+  # HTML table output
+  if (nrow(metabRxnList) == 0) {
+    # No results - return empty table or message
+    cat("<p>No metabolites found for this gene.</p>")
+    return(invisible(NULL))
+  }
+
   nprint <- nrow(metabRxnList)
-  tableAttr <- paste0("id='Gene", geneIdStr, "Table' class='styled-table'")
+
+  # SECURITY: Sanitize gene ID for HTML attribute
+  safe_gene <- gsub("[^A-Za-z0-9_-]", "_", geneIdStr)
+  tableAttr <- paste0('id="Gene', safe_gene, 'Table" class="styled-table"')
 
   print(
     xtable(metabRxnList[1:nprint, ]),
     type = "html",
     include.rownames = FALSE,
-    sanitize.text.function = function(x) x,
+    sanitize.text.function = function(x) x, # Don't double-escape (already escaped above)
     html.table.attributes = tableAttr
   )
+
+  invisible(NULL)
 }
 
 ###############################################################
 # Main script entry
 ###############################################################
 args <- commandArgs(TRUE)
-species_raw   <- args[1]
-geneStr_raw   <- args[2]
-anatomy_raw   <- args[3]
-disease_raw   <- args[4]
-viewType_raw  <- args[5]
 
-outhtml <- getMetaboliteInfoTable(
-  species_raw     = species_raw,
-  geneIdStr_raw   = geneStr_raw,
-  anatomyStr_raw  = anatomy_raw,
-  diseaseStr_raw  = disease_raw,
-  viewType_raw    = viewType_raw
+# SECURITY: Validate argument count
+if (length(args) < 5) {
+  write(
+    "Usage: extractMetaboliteInfo.R <species> <geneStr> <anatomyStr> <diseaseStr> <viewType>",
+    stderr()
+  )
+  quit(status = 1)
+}
+
+species_raw <- args[1]
+geneStr_raw <- args[2]
+anatomy_raw <- args[3]
+disease_raw <- args[4]
+viewType_raw <- args[5]
+
+# SECURITY: Wrap in tryCatch for error handling
+tryCatch(
+  {
+    outhtml <- getMetaboliteInfoTable(
+      species_raw     = species_raw,
+      geneIdStr_raw   = geneStr_raw,
+      anatomyStr_raw  = anatomy_raw,
+      diseaseStr_raw  = disease_raw,
+      viewType_raw    = viewType_raw
+    )
+  },
+  error = function(e) {
+    write(paste("ERROR:", e$message), stderr())
+    quit(status = 1)
+  }
 )

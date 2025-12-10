@@ -28,6 +28,11 @@ $disease       = $_SESSION['disease']       ?? '';
 $anatomy       = $_SESSION['anatomy']       ?? '';
 $phenotype     = $_SESSION['phenotype']     ?? '';
 $gene_array    = $_SESSION['geneArray']     ?? [];
+// SECURITY FIX: Ensure geneArray is actually an array
+if (!is_array($gene_array)) {
+    $gene_array = [];
+}
+
 $gene_symbols  = $_SESSION['geneSymbols']   ?? '';
 $species_sci   = $_SESSION['species_name']  ?? '';
 $org_name      = $_SESSION['org_name']      ?? '';
@@ -104,21 +109,33 @@ if ($gene_vec_str !== '') {
     $cmd = buildRscriptCommand(
         'extractPathwayInfo.R',
         [
-            $species,       // species
-            $gene_vec_str,  // gene IDs
-            $gene_sym_str,  // gene symbols
-            $species_sci    // scientific species name
+            $species,
+            $gene_vec_str,
+            $gene_sym_str,
+            $species_sci
         ]
     );
 
-    $output = [];
-    $retvar = 0;
-    exec($cmd, $output, $retvar);
-
-    echo "<pre>";
-    /* Pathway script returns real HTML tables — DO NOT escape them */
-    echo implode("\n", $output);
-    echo "</pre>";
+    // SECURITY FIX: Check if command was built successfully
+    if ($cmd === '') {
+        echo "<p style='color:red;'>Error: Pathway information script not available.</p>";
+        error_log("SECURITY: extractPathwayInfo.R not found or not readable");
+    } else {
+        $output = [];
+        $retvar = 0;
+        exec($cmd, $output, $retvar);
+        
+        // SECURITY FIX: Check return code
+        if ($retvar !== 0) {
+            error_log("R script extractPathwayInfo.R failed with exit code: $retvar");
+            echo "<p style='color:red;'>Error retrieving pathway information.</p>";
+        } else {
+            echo "<pre>";
+            /* Pathway script returns real HTML tables — DO NOT escape them */
+            echo implode("\n", $output);
+            echo "</pre>";
+        }
+    }
 
 } else {
 

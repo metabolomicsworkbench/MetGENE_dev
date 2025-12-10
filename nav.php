@@ -1,180 +1,357 @@
+<!DOCTYPE html>
+<html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en' lang='en'>
 <?php
-/******************************************************************************
- * MetGENE – Final Hardened nav.php (NO HTML WRAPPER)
- *
- * SECURITY:
- *  - Uses metgene_common.php for all sanitization & escaping
- *  - No <html>, <head>, <body> tags (safe for include inside other pages)
- *  - All GET input sanitized via safeGet()
- *  - All dynamic output escaped
- *  - Navigation URLs built with buildInternalUrl()
- *  - No Rscript command injection (escapeshellarg everywhere)
- ******************************************************************************/
+  // Start session securely
+  if (session_status() === PHP_SESSION_NONE) {
+      session_start([
+          'cookie_httponly' => true,
+          'cookie_samesite' => 'Strict',
+          'use_strict_mode' => true
+      ]);
+  }
 
-declare(strict_types=1);
+  // Load shared helpers
+  require_once(__DIR__ . "/metgene_common.php");
+  
+  // Send security headers
+  sendSecurityHeaders();
 
-require_once __DIR__ . "/metgene_common.php";
+  // Define esc() wrapper
+  if (!function_exists('esc')) {
+      function esc(string $v): string {
+          return escapeHtml($v);
+      }
+  }
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+  // Use secure base directory function
+  $METGENE_BASE_DIR_NAME = getBaseDirName();
 
-/* ---------------------------- Load sanitized input ------------------------ */
-$speciesRaw   = safeGet("species");
-$geneListRaw  = safeGet("GeneInfoStr");
-$geneIDType   = safeGet("GeneIDType");
-$disease      = safeGet("disease");
-$anatomy      = safeGet("anatomy");
-$phenotype    = safeGet("phenotype");
+  // ---- VALIDATE AND NORMALIZE ALL INPUTS ----
+  
+  // Species validation
+  $speciesRaw = safeGet("species", safeSession('species', ''));
+  list($speciesCanonical, $speciesLabel, $speciesScientific) = normalizeSpecies($speciesRaw);
+  $_SESSION['species']      = $speciesCanonical;
+  $_SESSION['org_name']     = $speciesLabel;
+  $_SESSION['species_name'] = $speciesScientific;
 
-/* ---------------------------- Normalize species --------------------------- */
-list($species, $organism_name, $org_sci_name) = normalizeSpecies($speciesRaw);
+  // Gene list validation
+  $geneListRaw = safeGet("GeneInfoStr", safeSession('geneList', ''));
+  $geneListRaw = str_replace(' ', '', $geneListRaw);
+  $geneListArrClean = cleanGeneList($geneListRaw);
+  $geneListClean = implode("__", $geneListArrClean);
+  $_SESSION['geneList'] = $geneListClean;
 
-/* ---------------------------- Sanitize gene list -------------------------- */
-$cleanGenes = sanitizeGeneList($geneListRaw);       // returns array of safe IDs
-$geneList   = implode("__", $cleanGenes);
+  // Gene ID type validation
+  $geneIDTypeRaw = safeGet("GeneIDType", safeSession('geneIDType', ''));
+  $geneIDTypeValidated = validateGeneIDType($geneIDTypeRaw);
+  $_SESSION['geneIDType'] = $geneIDTypeValidated;
 
-/* ---------------------------- Track session state ------------------------- */
-$navFields = [
-    "species"    => $species,
-    "geneList"   => $geneList,
-    "geneIDType" => $geneIDType,
-    "disease"    => $disease,
-    "anatomy"    => $anatomy,
-    "phenotype"  => $phenotype,
-];
+  // Disease validation
+  $diseaseRaw = safeGet("disease", safeSession('disease', ''));
+  list($diseaseMap, $allowedDiseases) = loadDiseaseSlimMap(__DIR__ . "/Disease_Slim.json");
+  $diseaseValidated = validateDiseaseValue($diseaseRaw, $allowedDiseases);
+  $_SESSION['disease'] = $diseaseValidated;
 
-$_SESSION['nav_changed'] = 0;
+  // Anatomy validation
+  $anatomyRaw = safeGet("anatomy", safeSession('anatomy', ''));
+  $allowedAnatomy = loadAnatomyValuesFromHtml(__DIR__ . "/anatomy_list.html");
+  $anatomyValidated = validateAnatomyValue($anatomyRaw, $allowedAnatomy);
+  $_SESSION['anatomy'] = $anatomyValidated;
 
-foreach ($navFields as $k => $v) {
-    if (!isset($_SESSION[$k]) || !isset($_SESSION["prev_nav_$k"])) {
-        $_SESSION[$k]            = "";
-        $_SESSION["prev_nav_$k"] = "";
-    }
-    if ($_SESSION["prev_nav_$k"] !== $v) {
-        $_SESSION["prev_nav_$k"] = $v;
-        $_SESSION[$k]            = $v;
-        $_SESSION['nav_changed'] = 1;
-    }
-}
+  // Phenotype validation (basic sanitization)
+  $_SESSION['phenotype'] = safeGet("phenotype", safeSession('phenotype', ''));
 
-/* ------------------- Execute ID→Symbol mapping when needed ---------------- */
-if ($_SESSION['nav_changed'] === 1) {
+  // Load validated session variables
+  $species    = $_SESSION['species'];
+  $geneList   = $_SESSION['geneList'];
+  $geneIDType = $_SESSION['geneIDType'];
+  $disease    = $_SESSION['disease'];
+  $anatomy    = $_SESSION['anatomy'];
+  $phenotype  = $_SESSION['phenotype'];
 
-    $allowedSpecies = ["hsa","mmu","rno"];
-    if (!in_array($species, $allowedSpecies, true)) {
-        $species = "hsa";
-    }
+  $phenotype_array = explode("__", $phenotype);
+  $disease_array   = explode("__", $disease);
+  $anatomy_array   = explode("__", $anatomy);
 
-    $allowedGeneTypes = ["SYMBOL","SYMBOL_OR_ALIAS","ENTREZID","ENSEMBL","REFSEQ","UNIPROT"];
-    if (!in_array($geneIDType, $allowedGeneTypes, true)) {
-        $geneIDType = "SYMBOL";
-    }
+  // Initialize previous session state
+  $_SESSION['prev_nav_species']    = safeSession('prev_nav_species', '');
+  $_SESSION['prev_nav_geneList']   = safeSession('prev_nav_geneList', '');
+  $_SESSION['prev_nav_geneIDType'] = safeSession('prev_nav_geneIDType', '');
+  $_SESSION['prev_nav_anatomy']    = safeSession('prev_nav_anatomy', '');
+  $_SESSION['prev_nav_disease']    = safeSession('prev_nav_disease', '');
+  $_SESSION['prev_nav_pheno']      = safeSession('prev_nav_pheno', '');
 
-    $cmd = "/usr/bin/Rscript "
-        . escapeshellarg("extractGeneIDsAndSymbols.R") . " "
-        . escapeshellarg($species) . " "
-        . escapeshellarg($geneList) . " "
-        . escapeshellarg($geneIDType) . " "
-        . escapeshellarg($_SERVER['SERVER_NAME'] ?? "localhost");
+  // Detect if navigation state changed
+  $nav_changed = false;
+  if (strcmp($_SESSION['prev_nav_species'], $species) != 0) {
+      $_SESSION['prev_nav_species'] = $species;
+      $nav_changed = true;
+  } else if (strcmp($_SESSION['prev_nav_geneList'], $geneList) != 0) {
+      $_SESSION['prev_nav_geneList'] = $geneList;
+      $nav_changed = true;
+  } else if (strcmp($_SESSION['prev_nav_geneIDType'], $geneIDType) != 0) {
+      $_SESSION['prev_nav_geneIDType'] = $geneIDType;
+      $nav_changed = true;
+  } else if (strcmp($_SESSION['prev_nav_disease'], $disease) != 0) {
+      $_SESSION['prev_nav_disease'] = $disease;
+      $nav_changed = true;
+  } else if (strcmp($_SESSION['prev_nav_anatomy'], $anatomy) != 0) {
+      $_SESSION['prev_nav_anatomy'] = $anatomy;
+      $nav_changed = true;
+  } else if (strcmp($_SESSION['prev_nav_pheno'], $phenotype) != 0) {
+      $_SESSION['prev_nav_pheno'] = $phenotype;
+      $nav_changed = true;
+  }
 
-    $symbol_geneIDs = [];
-    $retCode = 0;
-    exec($cmd, $symbol_geneIDs, $retCode);
+  $_SESSION['nav_changed'] = $nav_changed ? 1 : 0;
 
-    if ($retCode === 0 && !empty($symbol_geneIDs)) {
-        $geneSymbolsArr = [];
-        $geneIDsArr     = [];
+  // CRITICAL: Execute R script only if navigation changed
+  if ($nav_changed) {
+      // Regenerate session ID for security
+      session_regenerate_id(true);
+      
+      // Validate R script path
+      $scriptPath = realpath(__DIR__ . "/extractGeneIDsAndSymbols.R");
+      if ($scriptPath === false || !is_readable($scriptPath)) {
+          error_log("R script not found: extractGeneIDsAndSymbols.R");
+          $_SESSION['geneArray'] = [];
+          $_SESSION['geneSymbols'] = '';
+          $_SESSION['geneListArr'] = [];
+      } else {
+          $domainName = $_SERVER['SERVER_NAME'] ?? 'localhost';
+          
+          $cmd = "/usr/bin/Rscript "
+               . escapeshellarg($scriptPath) . " "
+               . escapeshellarg($species) . " "
+               . escapeshellarg($geneList) . " "
+               . escapeshellarg($geneIDType) . " "
+               . escapeshellarg($domainName);
+          
+          $symbol_geneIDs = [];
+          $retvar = 0;
+          exec($cmd, $symbol_geneIDs, $retvar);
+          
+          // Check for execution errors
+          if ($retvar !== 0) {
+              error_log("R script failed with exit code: $retvar");
+              $_SESSION['geneArray'] = [];
+              $_SESSION['geneSymbols'] = '';
+              $_SESSION['geneListArr'] = [];
+          } else {
+              $gene_symbols = [];
+              $gene_array = [];
+              $gene_id_symbols_arr = [];
 
-        foreach ($symbol_geneIDs as $line) {
-            $parts = explode(",", $line);
-            foreach ($parts as $i => $val) {
-                $cleanVal = trim($val, "\" ");
-                if ($i < count($parts)/2) {
-                    $geneSymbolsArr[] = $cleanVal;
-                } else {
-                    $geneIDsArr[] = $cleanVal;
-                }
-            }
-        }
+              // Validate output structure
+              if (!empty($symbol_geneIDs)) {
+                  foreach ($symbol_geneIDs as $val) {
+                      $parts = explode(",", $val);
+                      $gene_id_symbols_arr = array_merge($gene_id_symbols_arr, $parts);
+                  }
 
-        $_SESSION['geneArray']   = $geneIDsArr;
-        $_SESSION['geneSymbols'] = implode(",", $geneSymbolsArr);
-        $_SESSION['geneListArr'] = explode("__", $geneList);
+                  $length = count($gene_id_symbols_arr);
+                  
+                  for ($i = 0; $i < $length; $i++) {
+                      $trimmed_str = trim($gene_id_symbols_arr[$i], "\" ");
+                      
+                      if ($i < $length / 2) {
+                          $gene_symbols[] = $trimmed_str;
+                      } else {
+                          $gene_array[] = $trimmed_str;
+                      }
+                  }
+              }
 
-    } else {
-        $_SESSION['geneArray']   = [];
-        $_SESSION['geneSymbols'] = "";
-        $_SESSION['geneListArr'] = [];
-    }
-}
+              $_SESSION['geneArray']   = $gene_array;
+              $_SESSION['geneSymbols'] = implode(",", $gene_symbols);
+              $_SESSION['geneListArr'] = explode("__", $geneList);
+          }
+      }
+  }
 
-/* ------------------ Store anatomy, disease, phenotype arrays -------------- */
-$_SESSION['diseaseArray']   = explode("__", $disease);
-$_SESSION['phenotypeArray'] = explode("__", $phenotype);
-$_SESSION['anatomyArray']   = explode("__", $anatomy);
+  // Store arrays in session
+  $_SESSION['diseaseArray']   = $disease_array;
+  $_SESSION['phenotypeArray'] = $phenotype_array;
+  $_SESSION['anatomyArray']   = $anatomy_array;
 
-$_SESSION['org_name']     = $organism_name;
-$_SESSION['species_name'] = $org_sci_name;
+  // Helper function to build secure navigation URLs
+  function buildNavUrl(string $baseDir, string $page, array $params): string {
+      $url = rtrim($baseDir, '/') . '/' . ltrim($page, '/');
+      $queryParts = [];
+      
+      foreach ($params as $key => $value) {
+          $queryParts[] = urlencode($key) . '=' . urlencode($value);
+      }
+      
+      if (!empty($queryParts)) {
+          $url .= '?' . implode('&', $queryParts);
+      }
+      
+      return $url;
+  }
 
-/* ------------------------- Build Navigation URLs -------------------------- */
-
-$base = getBaseDirName();
-$currentFile = basename($_SERVER["SCRIPT_NAME"]);
-
-$navParams = [
-    "species"     => $species,
-    "GeneIDType"  => $geneIDType,
-    "anatomy"     => $anatomy,
-    "disease"     => $disease,
-    "phenotype"   => $phenotype,
-    "GeneInfoStr" => $geneList
-];
-
-/* Helper to build nav links */
-function buildNavItem(string $base, string $file, array $params, bool $active): string {
-    $url = buildInternalUrl($base, $file, $params);
-    $cls = $active ? "dropbtnlit" : "dropbtn";
-    $label = ucfirst(basename($file, ".php"));
-    return '<a href="'.escapeHtml($url).'" class="'.$cls.'">'.escapeHtml($label).'</a>';
-}
-
+  // Build navigation parameters array
+  $navParams = [
+      'species'      => $species,
+      'GeneIDType'   => $geneIDType,
+      'anatomy'      => $anatomy,
+      'disease'      => $disease,
+      'phenotype'    => $phenotype,
+      'GeneInfoStr'  => $geneList
+  ];
 ?>
-<!-- ======================= NO HTML WRAPPER — nav only ===================== -->
 
-<link rel="stylesheet" type="text/css"
-      href="<?php echo escapeHtml($base); ?>/css/header.css">
-<link rel="stylesheet" type="text/css"
-      href="<?php echo escapeHtml($base); ?>/css/layout.css">
+<style type='text/css' media='screen, projection, print'>
+@import "css/header.css";
+@import "css/layout.css";
+@import "css/style_layout.css";
+@import "css/main.css";
+@import "css/site.css";
+@import "css/layout_2col.css";
+@import "css/966px.css";
 
-<div id="hdr">
-    <div class="login-nav"
-         style="background-image:url('<?php echo escapeHtml($base); ?>/images/MetGeneBanner.png');">
+#hdr .login-nav {
+    background-color: #ffffff;
+    background-image: url('<?php echo esc($METGENE_BASE_DIR_NAME); ?>/images/MetGeneBanner.png');
+    background-size: 100%;
+}
+
+.topnav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.topnav li {
+    float: left;
+}
+
+.topnav li a, .dropbtn, .dropbtnlit {
+    display: inline;
+    color: #215EA9;
+    text-align: center;
+    text-decoration: none;
+}
+
+.dropdown {
+    float: left;
+    overflow: hidden;
+}
+
+.dropdown .dropbtn {
+    font-size: 16px;  
+    border: none;
+    color: #215EA9;
+    padding: 8px 12px;  
+    background-color: #eeeeee;
+    margin-right: 2px;
+    font-weight: normal;
+}
+
+.dropdown .dropbtnlit {
+    font-size: 16px;  
+    border: none;
+    color: #215EA9;
+    padding: 8px 12px;  
+    background-color: #edd8c5;
+    margin-right: 2px;
+    font-weight: normal;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+}
+
+.dropdown-content a {
+    float: none;
+    color: black;
+    padding: 8px 12px;
+    text-decoration: none;
+    display: block;
+    text-align: left;
+}
+
+.dropdown-content a:hover {
+    background-color: #ddd;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.styled-table {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+    word-wrap: break-word;
+}
+
+.styled-table td {
+    padding: 5px 10px;
+    width: 3%;
+    text-align: center;
+    word-break: break-all;
+    white-space: pre-line;
+}
+
+.styled-table tbody tr {
+    border-bottom: 1px solid #dddddd;
+}
+
+.styled-table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+</style>
+
+<body>
+<div id="constrain">
+  <div class="constrain">
+    <div id="hdr">
+    <span class="cleardiv"><!-- --></span>
+    <span class="cleardiv"><!-- --></span>
+    <div class="login-nav">
+      <div style="text-align:right; vertical-align: text-bottom; height:1.1cm; padding-right: 1.0em; padding-top: 1.0em;">
+      </div>
+      <div style="text-align:right; position: absolute; top:80px; right:2px;">
+      </div>
+
+<ul id="header-nav" class="topnav" style="position: absolute; width:100%; bottom:-1px;">
+<?php
+    // Get current script name safely
+    $currentScript = basename($_SERVER["SCRIPT_NAME"] ?? "");
+    
+    // Define navigation items
+    $navItems = [
+        ['file' => 'metGene.php', 'label' => 'Home'],
+        ['file' => 'geneInfo.php', 'label' => 'Genes'],
+        ['file' => 'pathways.php', 'label' => 'Pathways'],
+        ['file' => 'reactions.php', 'label' => 'Reactions'],
+        ['file' => 'metabolites.php', 'label' => 'Metabolites'],
+        ['file' => 'studies.php', 'label' => 'Studies'],
+        ['file' => 'summary.php', 'label' => 'Summary']
+    ];
+
+    // Generate navigation links
+    foreach ($navItems as $item) {
+        $url = buildNavUrl($METGENE_BASE_DIR_NAME, $item['file'], $navParams);
+        $class = ($currentScript === $item['file']) ? 'dropbtnlit' : 'dropbtn';
+        
+        echo '<li class="dropdown">';
+        echo '<a href="' . esc($url) . '" class="' . esc($class) . '">' . esc($item['label']) . '</a>';
+        echo '<div class="dropdown-content"></div>';
+        echo '</li>' . "\n";
+    }
+?>
+</ul>
+
+<span class="cleardiv"><!-- --></span>
+        </div>
+      </div>
     </div>
-
-    <ul id="header-nav" class="topnav" style="position:absolute;width:100%;bottom:-1px;">
-
-        <li class="dropdown">
-            <?= buildNavItem($base, "metGene.php",      $navParams, $currentFile === "metGene.php") ?>
-        </li>
-        <li class="dropdown">
-            <?= buildNavItem($base, "geneInfo.php",     $navParams, $currentFile === "geneInfo.php") ?>
-        </li>
-        <li class="dropdown">
-            <?= buildNavItem($base, "pathways.php",     $navParams, $currentFile === "pathways.php") ?>
-        </li>
-        <li class="dropdown">
-            <?= buildNavItem($base, "reactions.php",    $navParams, $currentFile === "reactions.php") ?>
-        </li>
-        <li class="dropdown">
-            <?= buildNavItem($base, "metabolites.php",  $navParams, $currentFile === "metabolites.php") ?>
-        </li>
-        <li class="dropdown">
-            <?= buildNavItem($base, "studies.php",      $navParams, $currentFile === "studies.php") ?>
-        </li>
-        <li class="dropdown">
-            <?= buildNavItem($base, "summary.php",      $navParams, $currentFile === "summary.php") ?>
-        </li>
-
-    </ul>
-</div>
+  </div>
+</body>
+</html>

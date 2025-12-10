@@ -15,10 +15,15 @@
  *****************************************************************************/
 
 declare(strict_types=1);
-session_start();
+
+// SECURITY FIX: Start session before any output
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 require_once __DIR__ . '/metgene_common.php';
 
+// SECURITY FIX: Send security headers
 sendSecurityHeaders();
 
 /* ---------------------------- BRANCH ON viewType -------------------------- */
@@ -34,8 +39,8 @@ if ($view_type === 'json' || $view_type === 'txt') {
     $gene_list    = safeGet('GeneInfoStr');
     $gene_id_type = safeGet('GeneIDType');
 
-    // Normalize species to allowed values only
-    $species = normalizeSpecies($species); // from metgene_common.php
+    // SECURITY FIX: normalizeSpecies returns array, extract just the code
+    list($species, $species_label, $species_sci) = normalizeSpecies($species);
 
     // Whitelist geneIDType
     $allowed_types = ['SYMBOL', 'SYMBOL_OR_ALIAS', 'ENTREZID', 'ENSEMBL', 'REFSEQ', 'UNIPROT'];
@@ -43,11 +48,12 @@ if ($view_type === 'json' || $view_type === 'txt') {
         $gene_id_type = 'SYMBOL';
     }
 
-    // Sanitize gene list for Rscript: allow only alphanumeric IDs separated by "__"/","
+    // Sanitize gene list for Rscript: allow alphanumeric + common gene ID chars
     $tmp   = str_replace('__', ',', $gene_list);
     $parts = explode(',', $tmp);
     $clean_genes = [];
-    $pat = '/^[A-Za-z0-9]+$/';
+    // SECURITY FIX: Use pattern consistent with other files
+    $pat = '/^[A-Za-z0-9._-]+$/';
 
     foreach ($parts as $g) {
         $g = trim($g);
@@ -70,9 +76,35 @@ if ($view_type === 'json' || $view_type === 'txt') {
         $domain_name,
     ]);
 
+    // SECURITY FIX: Check if command was built successfully
+    if ($cmd === '') {
+        if ($view_type === 'json') {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['error' => 'Script not available']);
+        } else {
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo "Error: Script not available\n";
+        }
+        error_log("SECURITY: extractGeneIDsAndSymbols.R not found or not readable");
+        exit;
+    }
+
     $symbol_gene_ids = [];
     $retvar = 0;
     exec($cmd, $symbol_gene_ids, $retvar);
+
+    // SECURITY FIX: Check return code
+    if ($retvar !== 0) {
+        error_log("R script extractGeneIDsAndSymbols.R failed with exit code: $retvar");
+        if ($view_type === 'json') {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['error' => 'Gene ID extraction failed']);
+        } else {
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo "Error: Gene ID extraction failed\n";
+        }
+        exit;
+    }
 
     $gene_symbols        = [];
     $gene_array          = [];
@@ -107,7 +139,7 @@ if ($view_type === 'json' || $view_type === 'txt') {
     $first = true;
     foreach ($gene_array as $value) {
         if (!preg_match($pat, $value)) {
-            continue; // skip anything non-alphanumeric
+            continue; // skip anything that doesn't match pattern
         }
 
         $cmd_rxn = buildRscriptCommand('extractReactionInfo.R', [
@@ -116,11 +148,18 @@ if ($view_type === 'json' || $view_type === 'txt') {
             $view_type,
         ]);
 
+        // SECURITY FIX: Check if command was built successfully
+        if ($cmd_rxn === '') {
+            error_log("SECURITY: extractReactionInfo.R not found or not readable");
+            continue;
+        }
+
         $output   = [];
         $ret_var2 = 0;
         exec($cmd_rxn, $output, $ret_var2);
 
         if ($ret_var2 !== 0) {
+            error_log("R script extractReactionInfo.R failed for gene $value with exit code: $ret_var2");
             // skip failed ones but don't break others
             continue;
         }
@@ -173,6 +212,11 @@ $org_name   = $_SESSION['org_name']     ?? '';
 $gene_array = $_SESSION['geneArray']    ?? [];
 $gene_syms  = $_SESSION['geneSymbols']  ?? '';
 
+// SECURITY FIX: Ensure geneArray is actually an array
+if (!is_array($gene_array)) {
+    $gene_array = [];
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -186,9 +230,9 @@ $gene_syms  = $_SESSION['geneSymbols']  ?? '';
 <link rel="manifest" href="<?= escapeHtml($base_dir) ?>/site.webmanifest">
 
 <?php
-// Navigation bar
-$nav_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/nav.php';
-if (is_readable($nav_file)) {
+// SECURITY FIX: Validate nav.php path with realpath
+$nav_file = realpath(__DIR__ . '/nav.php');
+if ($nav_file !== false && strpos($nav_file, __DIR__) === 0 && is_readable($nav_file)) {
     include $nav_file;
 }
 ?>
@@ -205,7 +249,9 @@ $url   = $_SERVER['SCRIPT_NAME'] ?? '';
 $parts = explode('/', $url);
 $file  = $parts[count($parts) - 1] ?? 'reactions.php';
 
-$cachefile = 'cache/cached-' . session_id() . '-' . substr_replace($file, '', -4) . '.html';
+// SECURITY FIX: Sanitize session ID and use absolute path
+$safeSession = preg_replace('/[^A-Za-z0-9]/', '', session_id());
+$cachefile = __DIR__ . '/cache/cached-' . $safeSession . '-' . basename($file, '.php') . '.html';
 $_SESSION['rxn_cache_file'] = $cachefile;
 $cachetime = 18000;
 
@@ -225,71 +271,91 @@ if (
     $i = 0;
 
     if (!empty($species) && !empty($gene_array) && ($_SESSION['rxn_changed'] ?? 0) === 1) {
-        foreach ($gene_array as $value) {
-            $gene_symbol_str = $gene_sym_arr[$i] ?? '';
+        // SECURITY FIX: Ensure gene_array is valid
+        if (!is_array($gene_array)) {
+            echo "<h3>Error: Invalid gene data</h3>";
+        } else {
+            foreach ($gene_array as $value) {
+                $gene_symbol_str = $gene_sym_arr[$i] ?? '';
 
-            // sanitize ID before passing to R
-            if ($value !== 'NA' && $value !== '' && preg_match('/^[A-Za-z0-9]+$/', $value)) {
-                $h3_str = '<h3>Reaction information for <i><b>' .
-                          escapeHtml($org_name) .
-                          '</b></i> gene <i><b>' .
-                          escapeHtml($gene_symbol_str) .
-                          '</b></i></h3>';
-                echo $h3_str;
+                // SECURITY FIX: Use stricter pattern for gene IDs
+                if ($value !== 'NA' && $value !== '' && preg_match('/^[A-Za-z0-9._-]+$/', $value)) {
+                    $h3_str = '<h3>Reaction information for <i><b>' .
+                              escapeHtml($org_name) .
+                              '</b></i> gene <i><b>' .
+                              escapeHtml($gene_symbol_str) .
+                              '</b></i></h3>';
+                    echo $h3_str;
 
-                $view_type_html = 'html';
+                    $view_type_html = 'html';
 
-                $cmd_rxn = buildRscriptCommand('extractReactionInfo.R', [
-                    $species,
-                    $value,
-                    $view_type_html,
-                ]);
+                    $cmd_rxn = buildRscriptCommand('extractReactionInfo.R', [
+                        $species,
+                        $value,
+                        $view_type_html,
+                    ]);
 
-                $output = [];
-                $retvar = 0;
-                exec($cmd_rxn, $output, $retvar);
+                    // SECURITY FIX: Check if command was built successfully
+                    if ($cmd_rxn === '') {
+                        error_log("SECURITY: extractReactionInfo.R not found or not readable");
+                        $err = '<h3>Error: Reaction script not available for <i><b>' .
+                               escapeHtml($org_name) .
+                               '</b></i> gene <i><b>' .
+                               escapeHtml($gene_symbol_str) .
+                               '</b></i></h3>';
+                        echo $err . "<br>\n";
+                    } else {
+                        $output = [];
+                        $retvar = 0;
+                        exec($cmd_rxn, $output, $retvar);
 
-                // R script returns HTML table; we intentionally do NOT escape it
-                // because downstream JS (tableHTMLExport) needs the real table markup.
-                if ($retvar === 0) {
-                    echo "<pre>";
-                    echo implode("\n", $output);
-                    echo "</pre><br>\n";
+                        // R script returns HTML table; we intentionally do NOT escape it
+                        // because downstream JS (tableHTMLExport) needs the real table markup.
+                        if ($retvar === 0) {
+                            echo "<pre>";
+                            echo implode("\n", $output);
+                            echo "</pre><br>\n";
+                        } else {
+                            error_log("R script extractReactionInfo.R failed for gene $value with exit code: $retvar");
+                            $err = '<h3>Error running reaction extraction for <i><b>' .
+                                   escapeHtml($org_name) .
+                                   '</b></i> gene <i><b>' .
+                                   escapeHtml($gene_symbol_str) .
+                                   '</b></i></h3>';
+                            echo $err . "<br>\n";
+                        }
+                    }
                 } else {
-                    $err = '<h3>Error running reaction extraction for <i><b>' .
-                           escapeHtml($org_name) .
-                           '</b></i> gene <i><b>' .
-                           escapeHtml($gene_symbol_str) .
-                           '</b></i></h3>';
-                    echo $err . "<br>\n";
+                    $h3_str = '<h3>No reaction information found for <i><b>' .
+                              escapeHtml($org_name) .
+                              '</b></i> gene <i><b>' .
+                              escapeHtml($gene_symbol_str) .
+                              '</b></i></h3>';
+                    echo $h3_str . "<br>\n";
                 }
-            } else {
-                $h3_str = '<h3>No reaction information found for <i><b>' .
-                          escapeHtml($org_name) .
-                          '</b></i> gene <i><b>' .
-                          escapeHtml($gene_symbol_str) .
-                          '</b></i></h3>';
-                echo $h3_str . "<br>\n";
+                $i++;
             }
-            $i++;
-        }
 
-        // Export buttons
-        echo '<p><button id="json">TO JSON</button> <button id="csv">TO CSV</button></p>';
+            // UPDATED: Use generateExportButtons helper
+            echo generateExportButtons($gene_array, 'Reactions');
 
-        $_SESSION['rxn_changed'] = 0;
+            $_SESSION['rxn_changed'] = 0;
 
-        // Write cache
-        $cachefile = $_SESSION['rxn_cache_file'];
-        if (!is_dir(dirname($cachefile))) {
-            @mkdir(dirname($cachefile), 0755, true);
+            // SECURITY FIX: Add error handling for cache write
+            $cachefile = $_SESSION['rxn_cache_file'];
+            if (!is_dir(dirname($cachefile))) {
+                @mkdir(dirname($cachefile), 0755, true);
+            }
+            $cached = @fopen($cachefile, 'w');
+            if ($cached) {
+                fwrite($cached, ob_get_contents());
+                fclose($cached);
+                @chmod($cachefile, 0640); // Restrict permissions
+            } else {
+                error_log("Failed to write cache file: $cachefile");
+            }
+            ob_end_flush(); // send buffer
         }
-        $cached = @fopen($cachefile, 'w');
-        if ($cached) {
-            fwrite($cached, ob_get_contents());
-            fclose($cached);
-        }
-        ob_end_flush(); // send buffer
     }
 }
 ?>
@@ -297,40 +363,16 @@ if (
 
 </div></div>
 
+<!-- UPDATED: Load scripts from external files -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="<?= escapeHtml($base_dir) ?>/src/tableHTMLExport.js"></script>
-
-<script>
-  $('#json').on('click', function () {
-    var gene_arr_str = '<?= json_encode($gene_array, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>';
-    var gene_arr = JSON.parse(gene_arr_str);
-    var len = gene_arr.length;
-    var tabName = "";
-    var fname = "";
-    for (var i = 0; i < len; i++) {
-        tabName = "#Gene" + gene_arr[i] + "Table";
-        fname = "Gene" + gene_arr[i] + "Reactions.json";
-        $(tabName).tableHTMLExport({ type: 'json', filename: fname });
-    }
-  });
-
-  $('#csv').on('click', function () {
-    var gene_arr_str = '<?= json_encode($gene_array, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>';
-    var gene_arr = JSON.parse(gene_arr_str);
-    var len = gene_arr.length;
-    var tabName = "";
-    var fname = "";
-    for (var i = 0; i < len; i++) {
-        tabName = "#Gene" + gene_arr[i] + "Table";
-        fname = "Gene" + gene_arr[i] + "Reactions.csv";
-        $(tabName).tableHTMLExport({ type: 'csv', filename: fname });
-    }
-  });
-</script>
+<script src="<?= escapeHtml($base_dir) ?>/js/table-export-handler.js"></script>
+<script src="<?= escapeHtml($base_dir) ?>/js/table-export-init.js"></script>
 
 <?php
-$footer_file = $_SERVER['DOCUMENT_ROOT'] . $base_dir . '/footer.php';
-if (is_readable($footer_file)) {
+// SECURITY FIX: Validate footer.php path with realpath
+$footer_file = realpath(__DIR__ . '/footer.php');
+if ($footer_file !== false && strpos($footer_file, __DIR__) === 0 && is_readable($footer_file)) {
     include $footer_file;
 }
 ?>

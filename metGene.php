@@ -1,277 +1,401 @@
-<?php
-/******************************************************************************
- * MetGENE – Hardened metGene.php
- * Uses metgene_common.php for all shared security, sanitization, species
- * normalization, path resolution, HTML escaping, etc.
- ******************************************************************************/
-
-declare(strict_types=1);
-
-require_once __DIR__ . "/metgene_common.php";
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-/* --------------------------- SECURITY HEADERS ------------------------------ */
-sendSecurityHeaders();
-
-/* --------------------------- SAFE BASE DIR -------------------------------- */
-$METGENE_BASE_DIR_NAME = getBaseDirName();
-
-/* --------------------------- SAFE GET INPUTS ------------------------------- */
-$species     = safeGet("species");
-$geneList    = safeGet("GeneInfoStr");
-$geneIDType  = safeGet("GeneIDType");
-$disease     = safeGet("disease");
-$anatomy     = safeGet("anatomy");
-$phenotype   = safeGet("phenotype");
-
-/* ---------------------------- SANITIZE GENE ID TYPE --------------------------------*/
-$geneIDType = validateGeneIDType($geneIDType);
-/* --------------------------- SANITIZE GENE LIST ---------------------------- */
-$cleanGenes = cleanGeneList($geneList);
-$geneList   = implode("__", $cleanGenes);
-
-/* --------------------------- NORMALIZE SPECIES ----------------------------- */
-list($species, $organism_name, $org_sci_name) = normalizeSpecies($species);
-
-/* --------------------------- NAV INCLUDE ----------------------------------- */
-$navFile = getNavIncludePath($METGENE_BASE_DIR_NAME, "nav.php");
-if (is_readable($navFile)) {
-    include $navFile;
-}
-
-/* --------------------------- SESSION SETUP -------------------------------- */
-$_SESSION['species']   = $species;
-$_SESSION['geneList']  = $geneList;
-$_SESSION['anatomy']   = $anatomy;
-$_SESSION['disease']   = $disease;
-$_SESSION['phenotype'] = $phenotype;
-
-/* Mark cache invalidation if filters changed */
-$previousKeys = ['species','geneList','anatomy','disease','phenotype'];
-$_SESSION['metgene_changed'] = 0;
-
-foreach ($previousKeys as $k) {
-    $prevKey = "prev_" . $k;
-    if (!isset($_SESSION[$prevKey])) {
-        $_SESSION[$prevKey] = "";
-    }
-    if ($_SESSION[$prevKey] !== $_SESSION[$k]) {
-        $_SESSION[$prevKey] = $_SESSION[$k];
-        $_SESSION['metgene_changed'] = 1;
-    }
-}
-
-/* --------------------------- CACHING SYSTEM -------------------------------- */
-$url      = $_SERVER["SCRIPT_NAME"];
-$break    = explode('/', $url);
-$file     = end($break);
-$cachefile = 'cache/cached-' . session_id() . '-' . basename($file, ".php") . '.html';
-$_SESSION['metgene_cache_file'] = $cachefile;
-$cachetime = 18000;
-
-if ($_SESSION['metgene_changed'] == 0 &&
-    file_exists($cachefile) &&
-    time() - $cachetime < filemtime($cachefile)) {
-
-    echo "<!-- Cached copy, generated " . date('H:i', filemtime($cachefile)) . " -->\n";
-    readfile($cachefile);
-    exit;
-}
-
-ob_start(); // begin buffering (will be written to cache later)
-?>
 <!DOCTYPE html>
-<html xmlns='http://www.w3.org/1999/xhtml'>
-<head>
-<title>MetGENE: Home</title>
-
-<link rel="apple-touch-icon" sizes="180x180"
-      href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/images/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32"
-      href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/images/favicon-32x32.png">
-
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-
-<style>
-/* (your original CSS unchanged) */
+<html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en' lang='en'>
+<style type='text/css' media='screen, projection, print'>
 figcaption {
   padding: 5px;
   font-family: 'Cherry Swash', cursive;
   font-size: 0.7em;
   font-weight: 700;
+  border: none;
   background: transparent;
+  word-wrap:normal;
   text-align: center;
 }
-.container { position: relative; text-align:center; color:black; }
-.Disease,.Phenotype,.Organism,.Anatomy,.Pathways,.Reactions,.Metabolites,.Studies,.Gene {
-  word-wrap: break-word; white-space: pre-line;
+
+.container {
+  position: relative;
+  text-align: center;
+  color: black;
 }
-.Disease { width:80px; bottom:40px; left:16px; position:absolute; }
-.Phenotype { width:80px; bottom:40px; left:16px; position:absolute; }
-.Organism { width:80px; top:30px; left:16px; position:absolute; }
-.Anatomy { width:80px; top:130px; left:16px; position:absolute; color:black; }
-.Pathways { position:absolute; top:20px; right:20px; color:black; font-size:0.75em; }
-.Reactions { position:absolute; top:100px; right:18px; color:black; font-size:0.75em; }
-.Metabolites { position:absolute; top:182px; right:14px; color:black; font-size:0.75em; }
-.Studies { position:absolute; top:268px; right:25px; color:black; font-size:0.75em; }
-.Gene { width:80px; position:absolute; top:44%; left:54%; transform:translate(-50%,-50%); color:red; }
+
+/* Disease text */
+.Disease {
+  width:80px;
+  position: absolute;
+  bottom: 40px;
+  left: 16px;
+     //  overflow-wrap: normal;
+  word-wrap: break-word;
+  white-space: pre-line;
+     /*  word-break: break-all;*/
+}
+
+.Phenotype {
+  width:80px;                   
+  position: absolute;                        
+  bottom: 40px;               
+  left: 16px;
+  word-wrap: break-word;
+  white-space: pre-line;
+/*  font-size:0.7em;  */
+} 
+
+/* Organism text */
+.Organism {
+  width:80px;
+  position: absolute;
+  top: 30px;
+  left: 16px;
+  word-wrap: break-word;
+  white-space: pre-line;
+}
+
+/* Anatomy text */
+.Anatomy {
+  width:80px;
+  position: absolute;
+  top: 130px;
+  left: 16px;
+  color: black;
+  word-wrap: break-word;
+  white-space: pre-line;
+}
+
+/* Pathway text */
+.Pathways {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: black;
+  font-size: 0.75em;
+}
+
+/* Reaction text */
+.Reactions {
+  position: absolute;
+  top: 100px;
+  right: 18px;
+  color: black;
+  font-size: 0.75em;
+}
+
+/* Metabolites text */
+.Metabolites {
+  position: absolute;
+  top: 182px;
+  right: 14px;
+  color: black;
+  font-size: 0.75em;
+}
+
+/* Studies text */
+.Studies {
+  position: absolute;
+  top: 268px;
+  right: 25px;
+  color: black;
+  font-size: 0.75em;
+}
+
+
+
+/* Centered text */
+.Gene {
+  width:80px;
+  position: absolute;
+  top: 44%;
+  left: 54%;
+  transform: translate(-50%, -50%);
+  color: red;
+}
+
+}
 </style>
+<head><title>MetGENE: Home</title>
+<?php
+    $curDirPath = dirname(htmlentities($_SERVER['PHP_SELF']));
+    $METGENE_BASE_DIR_NAME = $curDirPath;
+    echo "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"".$METGENE_BASE_DIR_NAME."/images/apple-touch-icon.png\">";
+    echo "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"".$METGENE_BASE_DIR_NAME."/images/apple-touch-icon.png\">";
+    echo "<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"".$METGENE_BASE_DIR_NAME."/images/favicon-32x32.png\">";
+    echo "<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"".$METGENE_BASE_DIR_NAME."/images/favicon-16x16.png\">";
+    echo "<link rel=\"manifest\" href=\"".$METGENE_BASE_DIR_NAME."/site.webmanifest\">";
+?>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<?php     include($_SERVER['DOCUMENT_ROOT'].$METGENE_BASE_DIR_NAME."/nav.php");?>
+<?php
+
+
+  $_SESSION['prev_species'] = isset($_SESSION['prev_species'])?$_SESSION['prev_species']:'';
+  $_SESSION['prev_geneList'] = isset($_SESSION['prev_geneList'])?$_SESSION['prev_geneList']:'';
+  $_SESSION['prev_anatomy'] = isset($_SESSION['prev_anatomy'])?$_SESSION['prev_anatomy']:'';
+  $_SESSION['prev_disease'] = isset($_SESSION['prev_disease'])?$_SESSION['prev_disease']:'';
+  $_SESSION['prev_pheno'] = isset($_SESSION['prev_pheno'])?$_SESSION['prev_pheno']:'';
+
+
+
+  if (strcmp($_SESSION['prev_species'],$_SESSION['species']) != 0) {
+    $_SESSION['prev_species'] = $_SESSION['species'];
+    $_SESSION['metgene_changed'] = 1;
+//    echo "species changed= ".$_SESSION['metgene_changed'];
+  } else if (strcmp($_SESSION['prev_geneList'], $_SESSION['geneList']) != 0) {
+    $_SESSION['prev_geneList'] = $_SESSION['geneList'];
+    $_SESSION['metgene_changed'] = 1;
+//    echo "geneList changed= ".$_SESSION['metgene_changed'];
+  } else if (strcmp($_SESSION['prev_disease'], $_SESSION['disease']) != 0) {
+    $_SESSION['prev_disease'] = $_SESSION['disease'];
+    $_SESSION['metgene_changed'] = 1;
+//    echo "disease changed= ".$_SESSION['metgene_changed'];
+  }  else if (strcmp($_SESSION['prev_anatomy'], $_SESSION['anatomy']) != 0) {
+    $_SESSION['prev_anatomy'] = $_SESSION['anatomy'];
+    $_SESSION['metgene_changed'] = 1;
+//    echo "anatomy changed= ".$_SESSION['metgene_changed'];
+  }  else if (strcmp($_SESSION['prev_pheno'], $_SESSION['phenotype']) != 0) {
+    $_SESSION['prev_pheno'] = $_SESSION['phenotype'];
+    $_SESSION['metgene_changed'] = 1;
+//    echo "phenotype changed= ".$_SESSION['metgene_changed'];
+  }  else {
+   $_SESSION['metgene_changed'] = 0;
+  }
+
+  
+?>
 
 </head>
 <body>
 
-<div id="constrain">
-<div class="constrain">
 
+<div id="constrain">
+<div class ="constrain">
+
+
+
+
+<p style="font-family: Arial; font-size: 14px; text-align: justify; text-indent: 30px;"> 
 <table>
 <tr>
 <td>
 <div class="container">
-
-<img src="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/images/MetGeneSchematicNew.png"
-     width="395" height="320" usemap="#schematic">
+  <?php echo "<img src =\"".$METGENE_BASE_DIR_NAME."/images/MetGeneSchematicNew.png\" width=\"395\" height=\"320\" usemap=\"#schematic\">";?>
 
 <map name="schematic">
-    <area shape="circle" coords="380,340,100" href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/geneInfo.php">
-    <area shape="rect" coords="665,60,840,180" href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/pathways.php">
-    <area shape="rect" coords="665,240,840,360" href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/reactions.php">
-    <area shape="rect" coords="665,420,840,540" href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/metabolites.php">
-    <area shape="rect" coords="665,700,840,720" href="<?php echo escapeHtml($METGENE_BASE_DIR_NAME); ?>/studies.php">
+         <?php echo "<area shape = \"circle\" coords = \"380,340,100\" alt = \"Genes Link\" href = \"".$METGENE_BASE_DIR_NAME."/geneInfo.php\">";?>
+         <?php echo "<area shape = \"rect\" coords = \"665,60,840,180\" alt = \"Pathways Link\" href = \"".$METGENE_BASE_DIR_NAME."/pathways.php\">";?>
+         <?php echo "<area shape = \"rect\" coords = \"665,240,840,360\" alt = \"Reactions Link\" href = \"".$METGENE_BASE_DIR_NAME."/reactions.php\">";?>
+         <?php echo "<area shape = \"rect\" coords = \"665,420,840,540\" alt = \"Metabolites Link\" href = \"".$METGENE_BASE_DIR_NAME."/metabolites.php\">";?>
+         <?php echo "<area shape = \"rect\" coords = \"665,700,840,720\" alt = \"Studies Link\" href = \"".$METGENE_BASE_DIR_NAME."/studies.php\">";?>
 </map>
-
 <?php
-/******************************************************************************
- * Render the diagram labels: organism, anatomy, phenotype, disease, gene, etc.
- ******************************************************************************/
 
-$anatomyStr       = escapeHtml($anatomy);
-$diseaseStr       = escapeHtml($disease);
-$phenotypeStr     = escapeHtml($phenotype);
-$geneSymbolsStr   = escapeHtml($cleanGenes[0] ?? "NA");
 
-echo '<div class="Organism"><a href="https://www.genome.jp/kegg-bin/show_organism?org=' .
-        escapeHtml($species) . '" target="_blank">' . escapeHtml($organism_name) . '</a></div>';
+  $metgene_changed = (isset($_SESSION['metgene_changed']))?$_SESSION['metgene_changed']:'';  
 
-echo '<div class="Anatomy">'. $anatomyStr .'</div>';
-echo '<div class="Disease">'. $diseaseStr .'</div>';
-echo '<div class="Phenotype">'. $phenotypeStr .'</div>';
 
-$geneUrl = buildInternalUrl(
-    $METGENE_BASE_DIR_NAME,
-    "geneInfo.php",
-    ["GeneInfoStr"=>$geneList, "species"=>$species, "GeneIDType"=>$geneIDType,
-     "disease"=>$disease, "anatomy"=>$anatomy, "phenotype"=>$phenotype]
-);
 
-echo '<div class="Gene"><a href="' . escapeHtml($geneUrl) . '">' . $geneSymbolsStr . '</a></div>';
+// top-cache.php
+  $url = $_SERVER["SCRIPT_NAME"];
+  $break = explode('/', $url);
+  $file = $break[count($break) - 1];
+//  $cachefile = 'cache/cached-'.substr_replace($file ,"",-4).'.html';
+  $cachefile = 'cache/cached-'.session_id().'-'.substr_replace($file ,"",-4).'.html';
+  $_SESSION['metgene_cache_file'] = $cachefile;
+  $cachetime = 18000;
 
-function mkLinkDiv($cls, $label, $file, $params, $base) {
-    $url = buildInternalUrl($base, $file, $params);
-    return '<div class="'.$cls.'"><a href="'.escapeHtml($url).'">'.$label.'</a></div>';
+//echo "<h3>Session changed ".$_SESSION['metgene_changed']."</h3>";
+// Serve from the cache if it is younger than $cachetime
+if ( $_SESSION['metgene_changed'] == False && file_exists($_SESSION['metgene_cache_file']) && time() - $cachetime < filemtime($_SESSION['metgene_cache_file'])) {
+    echo "<!-- Cached copy, generated ".date('H:i', filemtime($cachefile))." -->\n";
+//    echo "<h3>loaded cache file</h3>";
+    readfile($cachefile);
+    exit;
 }
+ob_start(); // Start the output buffer
 
-$params = ["GeneInfoStr"=>$geneList, "species"=>$species, "GeneIDType"=>$geneIDType,
-           "disease"=>$disease, "anatomy"=>$anatomy, "phenotype"=>$phenotype];
 
-echo mkLinkDiv("Pathways", "Pathways", "pathways.php", $params, $METGENE_BASE_DIR_NAME);
-echo mkLinkDiv("Reactions", "Reactions", "reactions.php", $params, $METGENE_BASE_DIR_NAME);
-echo mkLinkDiv("Metabolites", "Metabolites", "metabolites.php", $params, $METGENE_BASE_DIR_NAME);
-echo mkLinkDiv("Studies", "Studies", "studies.php", $params, $METGENE_BASE_DIR_NAME);
+if(isset($_SESSION['species']) && isset($_SESSION['geneArray']) && isset($_SESSION['metgene_changed']) && $_SESSION['metgene_changed'] == 1) {
 
-$_SESSION['metgene_changed'] = 0;
+  // Get the gene symbold here for the gene Ids
+
+  $geneSymbols = isset($_SESSION['geneSymbols'])?$_SESSION['geneSymbols']:'';
+  $gene_ids_arr = isset($_SESSION['geneArray'])?$_SESSION['geneArray']:'';
+  $gene_list_arr = isset($_SESSION['geneListArr'])?$_SESSION['geneListArr']:'';
+//  echo "geneIDs = ".$geneIDs;
+  $gene_symbols_arr = explode(",",$geneSymbols);
+
+  $geneTypeID = $_SESSION['geneTYpeID'];
+
+  $geneNameStr = $gene_symbols_arr[0];
+  $has_invalid_genes = 0;
+  $invalidGenesArr = array();
+//  echo "count of gene array = ".count($gene_ids_arr);
+  if (count($gene_ids_arr) > 1) {
+//    echo "Gene IDs = ".$gene_ids_arr[$x];
+//    echo "Gene syms = ".$gene_symbols_arr[$x];
+    for ($x=0; $x < count($gene_ids_arr); $x++) {
+      if (strcmp($gene_ids_arr[$x], "NA") == 0 || strcmp($gene_symbols_arr[$x], "NA") == 0) {
+          if (strcmp($gene_ids_arr[$x], "NA") == 0) {
+            if (strcmp($gene_symbols_arr[$x], "NA") != 0) { 
+              array_push($invalidGenesArr, $gene_symbols_arr[$x]);
+            } else {
+              array_push($invalidGenesArr, $gene_list_arr[$x]); 
+            }
+          } else {
+            array_push($invalidGenesArr, $gene_ids_arr[$x]);
+          }
+         $has_invalid_genes = 1;    
+      }
+    }
+    $geneNameStr = $gene_symbols_arr[0].", ...";
+  } else {
+    if (strcmp($gene_ids_arr[0], "NA") == 0 || strcmp($gene_symbols_arr[0], "NA") == 0) {
+      $geneNameStr = "NA";
+
+      if (strcmp($gene_ids_arr[0], "NA") == 0) {
+         if (strcmp($gene_symbols_arr[0], "NA") != 0) {
+           array_push($invalidGenesArr, $gene_symbols_arr[0]);
+         } else {
+           array_push($invalidGenesArr, $gene_list_arr[0]); 
+         }
+       } else {
+           array_push($invalidGenesArr, $gene_ids_arr[0]);
+       }
+
+      $has_invalid_genes = 1;
+    }
+  }
+
+
+  $anatomyStr = $anatomy_array[0];
+  if (count($anatomy_array) > 1) {
+    $anatomyStr = $anatomy_array[0].", ...";
+  }
+
+  $diseaseStr = $disease_array[0];
+  if (count($disease_array) > 1) {
+    $diseaseStr = $disease_array[0].", ...";
+  }
+
+  $phenotypeStr = $phenotype_array[0];
+  if (count($phenotype_array) > 1) {
+    $phenotypeStr = $phenotype_array[0].", ...";
+  }
+
+
+
+
+  
+  $anaStr = "<div class=\"Anatomy\">".$anatomyStr."</div>";
+  $diseaseStr = "<div class=\"Disease\">".$diseaseStr."</div>";
+  $phenotypeStr = "<div class=\"Phenotype\">".$phenotypeStr."</div>";
+// Get organism name
+  $human = array("Human","human","hsa","Homo sapiens");
+  $mouse = array("Mouse","mouse","mmu","Mus musculus");
+  $rat = array("Rat","rat","rno","Rattus norvegicus");
+  if(in_array($species, $human)){
+     $organism_name = "Human";
+     $org_sci_name = "Home sapiens";
+  } else if(in_array($species, $mouse)){
+     $organism_name = "Mouse";
+     $org_sci_name = "Mus musculus";
+  } else if(in_array($species, $rat)){
+     $organism_name = "Rat";
+     $org_sci_name = "Rattus norvegicus";
+  } else {
+     $organism_name = "";
+  }
+  $_SESSION['org_name'] = $organism_name;
+  $_SESSION['species_name'] = $org_sci_name;
+
+  $orgStr = "<div class=\"Organism\">"."<a href=\"https://www.genome.jp/kegg-bin/show_organism?org=".$species."\"target = \"_blank\">".$organism_name."</a></div>";  
+  $geneStr = "<div class=\"Gene\">"."<a href=\"".$METGENE_BASE_DIR_NAME."/geneInfo.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">".$geneNameStr."</a></div>";  
+  $pathwaysStr = "<div class=\"Pathways\">"."<a href=\"".$METGENE_BASE_DIR_NAME."/pathways.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">".Pathways."</a></div>";
+  $reactionsStr = "<div class=\"Reactions\">"."<a href=\"".$METGENE_BASE_DIR_NAME."/reactions.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">".Reactions."</a></div>";
+  $metabolitesStr = "<div class=\"Metabolites\">"."<a href=\"".$METGENE_BASE_DIR_NAME."/metabolites.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">".Metabolites."</a></div>";
+  $studiesStr = "<div class=\"Studies\">"."<a href=\"".$METGENE_BASE_DIR_NAME."/studies.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">".Studies."</a></div>";
+//  $studiesStr = "<div class=\"Studies\">"."<a href=\"/MetGENE/studies.php\">".Studies."</a></div>";
+  echo $orgStr;
+  echo $anaStr;
+  echo $diseaseStr;
+  echo $phenotypeStr;
+  echo $geneStr;
+  echo $pathwaysStr;
+  echo $reactionsStr;
+  echo $metabolitesStr;
+  echo $studiesStr;
+  $_SESSION['metgene_changed'] = 0;
+}
 ?>
+
 </div>
 </td>
 
-<td>
-<p style="margin:25px;font-size:120%;">
-
+<td><p style="margin:25px;font-size:120%;"">
 <?php
-/******************************************************************************
- * Invalid gene warning
- ******************************************************************************/
-
-// geneArray, geneSymbols, geneListArr must be populated earlier in pipeline
-$gene_ids_arr     = $_SESSION['geneArray']     ?? [];
-$gene_symbols_arr = explode(",", ($_SESSION['geneSymbols'] ?? ""));
-$gene_list_arr    = $_SESSION['geneListArr']   ?? [];
-
-$invalidGenesArr = [];
-$has_invalid_genes = false;
-
-for ($i = 0; $i < count($gene_ids_arr); $i++) {
-    $gid = $gene_ids_arr[$i]     ?? "NA";
-    $gs  = $gene_symbols_arr[$i] ?? "NA";
-    if ($gid === "NA" || $gs === "NA") {
-        $has_invalid_genes = true;
-        $invalidGenesArr[] = ($gs !== "NA") ? $gs : ($gene_list_arr[$i] ?? "NA");
+//  echo $metgene_changed;
+//  echo "<br>";
+//  echo $prev_geneList;
+  if ($has_invalid_genes == 1) {
+    $arrlen = count($invalidGenesArr);
+    $geneIDType = $geneIDType=(isset($_SESSION['geneIDType']))?$_SESSION['geneIDType']:'';
+    if ($arrlen > 1) {
+      $invalidGeneListStr= implode(",", $invalidGenesArr);
+      echo "<p style=\"font-size:14px; color:#538b01; font-weight:bold; font-style:italic;\"><h3><b>".$invalidGeneListStr."</b><span style=\"color: #ff0000\">  are not valid gene IDs for the Gene ID type ".$geneIDType." for species ".$organism_name.".</span></h3></p>";
+    } elseif ($arrlen == 1) {
+      $invalidGeneListStr= $invalidGenesArr[0];
+      echo "<p style=\"font-size:14px; color:#538b01; font-weight:bold; font-style:italic;\"><h3><b>".$invalidGeneListStr."</b><span style=\"color: #ff0000\">  is not a valid gene ID for type ".$geneIDType." for species ".$organism_name.".</span></h3></p>";
+    } else {
+      echo "<br>";
     }
-}
+  }
 
-if ($has_invalid_genes) {
-    $msg = implode(",", $invalidGenesArr);
-    echo '<p style="color:#ff0000;font-weight:bold;"><b>Invalid gene(s): '.$msg.'</b></p>';
-}
+//for ($i = 0; $i < count($gene_ids_arr); $i++) {
+//  $gene_id = $gene_ids_arr[$i];
+//  $gene_symbol = $gene_symbols_arr[$i];
+//  $gene_id_sym_map[$gene_id] = $gene_symbol;
+//}
+// check for metabolic genes 
+  $metGeneSYMBOLFileName = "./data/".$species."_metSYMBOLs.txt";
+  $metGeneSyms =  explode("\n", file_get_contents($metGeneSYMBOLFileName));
+  $resultSyms =  array_diff($gene_symbols_arr, $metGeneSyms);
+  $num_nonmetGenes = count($resultSyms);
+  if (!empty($resultSyms)) {
+     $nonmetGenes = implode(",", $resultSyms);
+     if ($num_nonmetGenes > 1) {
+         echo("<p style=\"font-size:14px; color:#538b01; font-weight:bold; font-style:italic;\"><h3><b>"."Warning: Genes ".$nonmetGenes." are not metabolic genes and hence will not contain Reactions, Metabolites, Studies or Summary views.</b></h3></p>");
+     } else {
+         echo("<p style=\"font-size:14px; color:#538b01; font-weight:bold; font-style:italic;\"><h3><b>"."Warning: Gene ".$nonmetGenes." is not a metabolic gene and hence will not contain Reactions, Metabolites, Studies or Summary views.</b></h3></p>");
+     }
+  }
 
-/******************************************************************************
- * Check for non-metabolic genes
- ******************************************************************************/
-
-$metGeneSYMBOLFileName = __DIR__ . "/data/" . $species . "_metSYMBOLs.txt";
-$metGeneSyms = file_exists($metGeneSYMBOLFileName)
-    ? explode("\n", file_get_contents($metGeneSYMBOLFileName))
-    : [];
-
-$resultSyms = array_diff($gene_symbols_arr, $metGeneSyms);
-
-if (!empty($resultSyms)) {
-    $nonmet = escapeHtml(implode(",", $resultSyms));
-    echo '<p style="font-size:14px;color:#538b01;font-weight:bold;">
-            <b>Warning:</b> Gene(s) '.$nonmet.' are not metabolic and will not contain
-            Reactions, Metabolites, Studies, or Summary views.
-          </p>';
-}
-
-/******************************************************************************
- * Description text
- ******************************************************************************/
-
-$descStr = "
-In the MetGENE tool, information about the gene(s) ".escapeHtml($geneSymbolsStr)."
-is presented in <a href=\"".buildInternalUrl($METGENE_BASE_DIR_NAME,"geneInfo.php",$params)."\">Genes</a>,
-the corresponding pathways in <a href=\"".buildInternalUrl($METGENE_BASE_DIR_NAME,"pathways.php",$params)."\">Pathways</a>
-and the reactions in <a href=\"".buildInternalUrl($METGENE_BASE_DIR_NAME,"reactions.php",$params)."\">Reactions</a>.
-The metabolites participating in the reactions are presented in
-<a href=\"".buildInternalUrl($METGENE_BASE_DIR_NAME,"metabolites.php",$params)."\">Metabolites</a>.
-For each metabolite, studies containing it are retrieved from the
-<a href=\"https://www.metabolomicsworkbench.org\" target=\"_blank\">Metabolomics Workbench</a>.
-";
-
-echo "<p>$descStr</p>";
-
+  $descStr = "In the MetGENE tool, information about the  gene(s) ".$geneNameStr."  is presented in <a href=\"".$METGENE_BASE_DIR_NAME."/geneInfo.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">Genes</a>, the corresponding pathways in <a href=\"".$METGENE_BASE_DIR_NAME."/pathways.php?GeneInfoStr=".$geneList."&GeneIDType=".$geneIDType."&species=".$species."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">Pathways</a> and the reactions in <a href=\"".$METGENE_BASE_DIR_NAME."/reactions.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">Reactions</a> tabs. The metabolites participating in the reactions are presented in <a href=\"".$METGENE_BASE_DIR_NAME."/metabolites.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">Metabolites</a> tab. For each metabolite, the studies containing the metabolite are identified from the <a href=\"https://www.metabolomicsworkbench.org\" target=\"_blank\">Metabolomics Workbench</a> (MW) and presented in <a href=\"".$METGENE_BASE_DIR_NAME."/studies.php?GeneInfoStr=".$geneList."&species=".$species."&GeneIDType=".$geneIDType."&disease=".$disease."&anatomy=".$anatomy."&phenotype=".$phenotype."\">Studies</a> tab.";
+ echo $descStr;
 ?>
 </p>
-</td>
+<p style="margin:25px;font-size:120%;">
+     The data from MW studies are presented as table(s), with the metabolite names hyperlinked to MW <a href="https://www.metabolomicsworkbench.org/databases/refmet/index.php" target = "_blank">RefMet</a> page (or to the corresponding <a href="https://www.genome.jp/kegg/" target = "_blank">KEGG</a> entry in the absence of a RefMet name) for the metabolite, reaction hyperlinked to its KEGG entry and MW studies hyperlinked to their respective pages. The user also has access to the metabolite statistics via <a href="https://www.metabolomicsworkbench.org/data/metstat_form.php" target="_blank">MetStat</a>. Further, the user has the option to select more than one metabolite to list only those studies in which all the selected metabolites appear and can download the table as a text, HTML or JSON file.
+</p></td>
+
 </tr>
 </table>
+</p>
 
 </div>
 </div>
-
+<?php include($_SERVER['DOCUMENT_ROOT'].$METGENE_BASE_DIR_NAME."/footer.php");?>
 <?php
-/* FOOTER */
-$footer = getNavIncludePath($METGENE_BASE_DIR_NAME, "footer.php");
-if (is_readable($footer)) include $footer;
+// bottom-cache.php
+// Cache the contents to a cache file
+//echo "creating cached file ".$cachefile;
 
-/* --------------------------- WRITE CACHE FILE ------------------------------ */
+$cachefile = $_SESSION['metgene_cache_file']; 
 $cached = fopen($cachefile, 'w');
+
 fwrite($cached, ob_get_contents());
 fclose($cached);
-ob_end_flush();
+ob_end_flush(); // Send the output to the browser
 ?>
 
 </body>
+
 </html>
