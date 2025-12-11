@@ -1,6 +1,6 @@
 <?php
 /**
- * rest.php - MetGENE REST API
+ * metgene_rest_api_class.php - MetGENE REST API
  * Security hardened with proper input validation, command injection prevention,
  * and consistent use of security functions
  */
@@ -359,9 +359,9 @@ class API extends REST {
                 }
             }
 
-            // URL encode disease and anatomy
-            $enc_disease = rawurlencode($disease);
-            $enc_anatomy = rawurlencode($anatomy);
+            // SECURITY FIX: Don't encode here - R scripts will handle encoding for MW API
+            // PHP has already decoded the URL parameters from the request
+            // Pass them as-is to R scripts
 
             // SECURITY FIX: Process based on function type
             switch ($func_arg_key) {
@@ -370,7 +370,7 @@ class API extends REST {
                     break;
                     
                 case 'metabolites':
-                    $this->process_metabolites($gene_array, $species, $enc_anatomy, $enc_disease, $viewType);
+                    $this->process_metabolites($gene_array, $species, $anatomy, $disease, $viewType);
                     break;
                     
                 case 'summary':
@@ -378,7 +378,7 @@ class API extends REST {
                     break;
                     
                 case 'studies':
-                    $this->process_studies($gene_array, $species, $enc_disease, $enc_anatomy, $viewType);
+                    $this->process_studies($gene_array, $species, $disease, $anatomy, $viewType);
                     break;
                     
                 default:
@@ -435,8 +435,8 @@ class API extends REST {
         exit;
     }
 
-    private function process_metabolites(array $gene_array, string $species, string $enc_anatomy, 
-                                        string $enc_disease, string $viewType): void {
+    private function process_metabolites(array $gene_array, string $species, string $anatomy, 
+                                        string $disease, string $viewType): void {
         $cnt = 0;
         echo "[";
         
@@ -459,7 +459,7 @@ class API extends REST {
 
         foreach ($gene_array as $value) {
             $cmd = buildRscriptCommand('extractMetaboliteInfo.R', 
-                                      [$species, $value, $enc_anatomy, $enc_disease, $viewType]);
+                                      [$species, $value, $anatomy, $disease, $viewType]);
             
             if ($cmd === '') {
                 error_log("Failed to build R script command for metabolites");
@@ -558,34 +558,48 @@ class API extends REST {
         exit;
     }
 
-    private function process_studies(array $gene_array, string $species, string $enc_disease, 
-                                    string $enc_anatomy, string $viewType): void {
-        $gene_vec_str = implode(",", $gene_array);
+    private function process_studies(array $gene_array, string $species, string $disease, 
+                                string $anatomy, string $viewType): void {
+    $gene_vec_str = implode(",", $gene_array);
 
-        $cmd = buildRscriptCommand('extractFilteredStudiesInfo.R', 
-                                   [$species, $gene_vec_str, $enc_disease, $enc_anatomy, $viewType]);
-        
-        if ($cmd === '') {
-            error_log("Failed to build R script command for studies");
-            $this->response($this->content_types["text"], 'Internal server error', 500);
-            exit;
-        }
-
-        $output = [];
-        $retVar = 0;
-        exec($cmd, $output, $retVar);
-        
-        $htmlbuff = implode("\n", $output);
-        
-        if ($viewType === "json") {
-            header('Content-type: application/json; charset=UTF-8');
-        } else {
-            header('Content-Type: text/plain; charset=UTF-8');
-        }
-
-        echo $htmlbuff;
+    // TEMPORARY DEBUG OUTPUT
+    if ($viewType === "json") {
+        header('Content-type: application/json; charset=UTF-8');
+    } else {
+        header('Content-Type: text/plain; charset=UTF-8');
+    }
+    
+    /* echo "<!-- DEBUG INFO -->\n";
+    echo "<!-- gene_array count: " . count($gene_array) . " -->\n";
+    echo "<!-- gene_array: " . json_encode($gene_array) . " -->\n";
+    echo "<!-- gene_vec_str: " . $gene_vec_str . " -->\n";
+    echo "<!-- species: " . $species . " -->\n";
+    echo "<!-- anatomy: " . $anatomy . " -->\n";
+    echo "<!-- disease: " . $disease . " -->\n"; */
+    
+    $cmd = buildRscriptCommand('extractFilteredStudiesInfo.R', 
+                               [$species, $gene_vec_str, $disease, $anatomy, $viewType]);
+    
+    // echo "<!-- R command: " . $cmd . " -->\n";
+    
+    if ($cmd === '') {
+        echo "<!-- ERROR: Failed to build R script command -->\n";
+        $this->response($this->content_types["text"], 'Internal server error', 500);
         exit;
     }
+
+    $output = [];
+    $retVar = 0;
+    exec($cmd, $output, $retVar);
+    
+    // echo "<!-- R script return code: " . $retVar . " -->\n";
+    // echo "<!-- R script output lines: " . count($output) . " -->\n";
+    
+    $htmlbuff = implode("\n", $output);
+    
+    echo $htmlbuff;
+    exit;
+}
 
     // SECURITY FIX: Removed unused json() method
 }

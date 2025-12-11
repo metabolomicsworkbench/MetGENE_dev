@@ -172,17 +172,31 @@ getMetaboliteStudiesForGene <- function(orgId, geneArray, diseaseId, anatomyId, 
     anatomyQryStr <- anatomyId
     diseaseQryStr <- diseaseId
 
-    pat_str <- "\\+"
-    rep_str <- "%20"
+    # ---------------------------
+    # SECURITY: URL encode anatomy and disease for MW REST API
+    # MW REST API expects %20 for spaces, not +
+    # Handle both spaces and + characters
+    # ---------------------------
 
-    if (!is_empty(anatomyId) && length(anatomyId) > 0 && str_detect(anatomyId, pat_str)) {
-        anatomyQryStr <- str_replace_all(anatomyId, pat_str, rep_str)
+    # Process anatomy
+    if (!is.null(anatomyId) && nzchar(anatomyId) && anatomyId != "NA") {
+        # First convert + to space (in case it came from URL encoding)
+        anatomyQryStr <- gsub("\\+", " ", anatomyId, fixed = FALSE)
+        # Then URL encode (converts spaces to %20)
+        anatomyQryStr <- URLencode(anatomyQryStr, reserved = TRUE)
+    } else {
+        anatomyQryStr <- ""
     }
 
-    if (!is_empty(diseaseId) && length(diseaseId) > 0 && str_detect(diseaseId, pat_str)) {
-        diseaseQryStr <- str_replace_all(diseaseId, pat_str, rep_str)
+    # Process disease
+    if (!is.null(diseaseId) && nzchar(diseaseId) && diseaseId != "NA") {
+        # First convert + to space (in case it came from URL encoding)
+        diseaseQryStr <- gsub("\\+", " ", diseaseId, fixed = FALSE)
+        # Then URL encode (converts spaces to %20)
+        diseaseQryStr <- URLencode(diseaseQryStr, reserved = TRUE)
+    } else {
+        diseaseQryStr <- ""
     }
-
     # ---------------------------
     # Process each metabolite
     # ---------------------------
@@ -200,7 +214,7 @@ getMetaboliteStudiesForGene <- function(orgId, geneArray, diseaseId, anatomyId, 
                 diseaseQryStr, ";",
                 metabStr
             )
-
+            # print(path)
             # SECURITY: Wrap REST API call in tryCatch
             jslist <- tryCatch(
                 read_json(path, simplifyVector = TRUE),
