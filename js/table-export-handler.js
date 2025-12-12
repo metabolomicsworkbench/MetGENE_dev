@@ -5,6 +5,7 @@
 (function ($) {
     'use strict';
 
+
     window.MetGENE = window.MetGENE || {};
 
     window.MetGENE.initTableExport = function (config) {

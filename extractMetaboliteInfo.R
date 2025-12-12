@@ -304,7 +304,7 @@ getMetaboliteInfoTable <- function(species_raw,
             "<a href=\"", html_escape(metStatLink),
             "&rows_to_display=1\" target=\"_blank\">",
             "<img src=\"", html_escape(currDir),
-            "/images/statSymbolIcon.png\" alt=\"metstat\" width=\"30\"></a>"
+            "/images/statSymbolIcon.png\" alt=\"", metStatLink, "\" width=\"30\"></a>"
           )
 
           metabRxnList[nrow(metabRxnList) + 1, ] <-

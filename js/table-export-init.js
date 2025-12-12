@@ -3,6 +3,8 @@
  * Universal initialization for table export across all MetGENE pages
  */
 $(document).ready(function () {
+
+
     var configJson = $('#export-buttons').attr('data-export-config');
 
     if (configJson) {
