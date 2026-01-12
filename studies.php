@@ -133,7 +133,22 @@ $viewType = safeGet("viewType");
  } else {
    header('Content-Type: text/plain; charset=UTF-8');
  }
- echo $htmlbuff;
+ $htmlbuff = preg_replace(
+  '/<table([^>]*)>/i',
+  '<table$1>
+   <colgroup>
+     <col style="width:36px">
+     <col style="width:72px">
+     <col>      <!-- Col 3 = content width -->
+     <col>      <!-- Col 4 = elastic remainder -->
+   </colgroup>',
+  $htmlbuff,
+  1
+);
+
+echo $htmlbuff;
+
+
 
 ?>
 <?php else: ?>
@@ -193,11 +208,58 @@ if ($nav_file !== false && strpos($nav_file, __DIR__) === 0 && is_readable($nav_
 ?>
 </head>
 <style>
-  table th, td {word-wrap:break-word;white-space: normal;border-bottom: 1px solid #dddddd;}
-  table tbody tr:nth-of-type(even) {
-    background-color: #f3f3f3;
-    width: 100%;
-  }
+table {
+  width: 100%;
+  table-layout: fixed;      /* forces strict column layout */
+  border-collapse: collapse;
+}
+
+table, thead, tbody, tr, th, td {
+  box-sizing: border-box;
+}
+
+table th,
+table td {
+  border-bottom: 1px solid #dddddd;
+  white-space: normal !important;
+  word-wrap: break-word;
+  overflow: hidden;
+}
+
+/* Zebra rows */
+table tbody tr:nth-of-type(even) {
+  background-color: #f3f3f3;
+}
+
+/* Col 1 – checkbox */
+table th:nth-child(1),
+table td:nth-child(1) {
+  width: 36px;
+}
+
+/* Col 2 – ID */
+table th:nth-child(2),
+table td:nth-child(2) {
+  width: 72px;
+  text-align: center;
+  font-family: monospace;
+}
+
+/* Col 3 – content sized but capped */
+table th:nth-child(3),
+table td:nth-child(3) {
+  width: 180px;             /* prevent runaway width */
+  max-width: 180px;
+  white-space: nowrap;
+}
+
+/* Col 4 – Studies (elastic) */
+table th:nth-child(4),
+table td:nth-child(4) {
+  width: auto;             /* absorbs remaining width */
+  white-space: normal;
+  word-break: break-word;
+}
 </style>
 <body
     data-species="<?php echo esc($_SESSION['species'] ?? ''); ?>"
@@ -306,13 +368,28 @@ if(isset($_SESSION['species']) && isset($_SESSION['geneArray'])  &&  isset($_SES
             echo "<h3><i>Error retrieving studies information.</i></h3>";
         } else {
             $htmlbuff = implode($output);
+            $htmlbuff = preg_replace(
+  '/<table([^>]*)>/i',
+  '<table$1>
+   <colgroup>
+    <col style="width:36px">
+    <col style="width:72px">
+    <col>      <!-- Col 3 = content width -->
+    <col>      <!-- Col 4 = elastic remainder -->
+   </colgroup>',
+  $htmlbuff,
+  1
+);
+
+
+
 
             if (!empty($htmlbuff)) {
               $p_str = "<p> Use check boxes to select metabolites to combine their studies. </p>";
               echo $p_str;
-              echo "<pre>";
+              
               echo $htmlbuff;
-              echo "</pre>";
+              
               $inputStr = "<input type=\"button\" id=\"combineStudiesBtn\" value=\"Combine Studies\" />";
               echo $inputStr;
               echo "<br>";

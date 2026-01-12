@@ -42,7 +42,7 @@ safe_url <- function(domain, species, geneType, genes) {
 
   paste0(
     "https://", domain_clean,
-    "/dev/geneid/rest/species/", species_enc,
+    "/geneid/rest/species/", species_enc,
     "/GeneIDType/", type_enc,
     "/GeneListStr/", genes_enc,
     "/USE_NCBI_GENE_INFO/", USE_NCBI_GENE_INFO,

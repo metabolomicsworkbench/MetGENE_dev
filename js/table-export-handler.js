@@ -55,6 +55,7 @@
         }
 
         function handleExport(type) {
+
             if (settings.geneArray.length === 0) {
                 exportAll(type);
                 return;

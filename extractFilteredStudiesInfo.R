@@ -356,7 +356,7 @@ getMetaboliteStudiesForGene <- function(orgId, geneArray, diseaseId, anatomyId, 
         if (nrow(metabStudyDF) > 0) {
             tableDF <- metabStudyDF[, c("select", "kegg_id", "refmetname_url", "study_urls")]
             tableDF$study_urls <- gsub(",", "", tableDF$study_urls)
-            colnames(tableDF) <- c("SELECT", "KEGGMETABID", "REFMETNAME", "STUDIES")
+            colnames(tableDF) <- c("&#10003;", "KEGG ID", "REFMETNAME", "STUDIES")
             nprint <- nrow(tableDF)
 
             return(
