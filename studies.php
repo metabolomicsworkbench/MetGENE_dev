@@ -224,6 +224,7 @@ table td {
   white-space: normal !important;
   word-wrap: break-word;
   overflow: hidden;
+  text-align: left;
 }
 
 /* Zebra rows */
@@ -241,8 +242,7 @@ table td:nth-child(1) {
 table th:nth-child(2),
 table td:nth-child(2) {
   width: 72px;
-  text-align: center;
-  font-family: monospace;
+  text-align: left;
 }
 
 /* Col 3 – content sized but capped */
@@ -251,6 +251,7 @@ table td:nth-child(3) {
   width: 180px;             /* prevent runaway width */
   max-width: 180px;
   white-space: nowrap;
+  text-align: left;
 }
 
 /* Col 4 – Studies (elastic) */
@@ -259,6 +260,7 @@ table td:nth-child(4) {
   width: auto;             /* absorbs remaining width */
   white-space: normal;
   word-break: break-word;
+  text-align: left;
 }
 </style>
 <body
