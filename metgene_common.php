@@ -236,7 +236,29 @@ function loadAnatomyValuesFromHtml(string $htmlFile): array
 
 function validateAnatomyValue(string $anatomy, array $allowed): string
 {
-    return in_array($anatomy, $allowed, true) ? $anatomy : 'NA';
+    if ($anatomy === '' || $anatomy === 'NA') {
+        return 'NA';
+    }
+
+    // 1. Try exact match first
+    if (in_array($anatomy, $allowed, true)) {
+        return $anatomy;
+    }
+
+    // 2. Normalize: lowercase + collapse spaces, hyphens, underscores
+    $normalize = function(string $s): string {
+        return strtolower(preg_replace('/[\s\-_]+/', '', $s));
+    };
+
+    $anatomyNorm = $normalize($anatomy);
+
+    foreach ($allowed as $val) {
+        if ($normalize($val) === $anatomyNorm) {
+            return $val; // return canonical form from the HTML file
+        }
+    }
+
+    return 'NA';
 }
 
 function buildCacheFilePath(string $cacheDir, string $scriptName, string $sessionId): string
