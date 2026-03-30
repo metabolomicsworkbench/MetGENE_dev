@@ -61,17 +61,7 @@ $normalize = function(string $s): string {
     return strtolower(preg_replace('/[^a-z0-9]/i', '', $s));
 };
 $allowedAnatomy = loadAnatomyValuesFromHtml(__DIR__ . "/ssdm_sample_source_pulldown_menu.html");
-echo "<pre>";
-echo "anatomyRaw = " . var_export($anatomyRaw, true) . "\n";
-echo "anatomyRaw normalized = " . var_export($normalize($anatomyRaw), true) . "\n";
-echo "\nSearching for 'blood' in allowed:\n";
-foreach ($allowedAnatomy as $v) {
-    if (stripos($v, 'blood') !== false) {
-        echo "  " . var_export($v, true) . " => normalized: " . $normalize($v) . "\n";
-    }
-}
-echo "</pre>";
-die();
+
 
   $allowedAnatomy = loadAnatomyValuesFromHtml(__DIR__ . "/ssdm_sample_source_pulldown_menu.html");
   $anatomyValidated = validateAnatomyValue($anatomyRaw, $allowedAnatomy);

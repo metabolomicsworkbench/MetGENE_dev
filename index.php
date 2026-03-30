@@ -66,13 +66,31 @@ $geneIDtxtField = "<input type=\"text\" name=\"GeneInfoStr\" value=\"" . escapeH
 <?php include(getNavIncludePath($base_dir, "nav_index.php")); ?>
 
 <style type='text/css'>
-.btn {
-    background-color: rgb(7,55,99);
-    color: white;
-    border: none;
-    cursor: pointer;
-    padding: 2px 12px 3px 12px;
-    text-decoration: none;
+button {
+  font-size: 18px;
+  display: inline-block;
+  outline: 0;
+  border: 0;
+  cursor: pointer;
+  will-change: box-shadow,transform;
+  background: radial-gradient( 100% 100% at 100% 0%, #89E5FF 0%, #5468FF 100% );
+  box-shadow: 0px 0.01em 0.01em rgb(45 35 66 / 40%), 0px 0.3em 0.7em -0.01em rgb(45 35 66 / 30%), inset 0px -0.01em 0px rgb(58 65 111 / 50%);
+  padding: 0 2em;
+  border-radius: 0.3em;
+  color: #fff;
+  height: 2.6em;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 40%);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+button:hover {
+  box-shadow: 0px 0.1em 0.2em rgb(45 35 66 / 40%), 0px 0.4em 0.7em -0.1em rgb(45 35 66 / 30%), inset 0px -0.1em 0px #3c4fe0;
+  transform: translateY(-0.1em);
+}
+
+button:active {
+  box-shadow: inset 0px 0.1em 0.6em #3c4fe0;
+  transform: translateY(0em);
 }
 </style>
 
@@ -141,271 +159,8 @@ foreach (["SYMBOL","SYMBOL_OR_ALIAS","ENTREZID","ENSEMBL","REFSEQ","UNIPROT"] as
 <td>
 <center>
 <select name="anatomy">
-<option value="NA" <?= $validatedAnatomy==="NA"?"selected":"" ?>>
-Select anatomy/Sample source
-</option>
-<option value = "293T HEK cell line">293T HEK cell line</option>
-<option value = "Acorns">Acorns</option>
-<option value = "Adherent cultured mammalian cells">Adherent cultured mammalian cells</option>
-<option value = "Adipose tissue">Adipose tissue</option>
-<option value = "Adrenal gland">Adrenal gland</option>
-<option value = "Algae">Algae</option>
-<option value = "Algae oil">Algae oil</option>
-<option value = "AML cells">AML cells</option>
-<option value = "Amniotic fluid">Amniotic fluid</option>
-<option value = "Aqueous humour">Aqueous humour</option>
-<option value = "Arteries">Arteries</option>
-<option value = "Astrocyte cells">Astrocyte cells</option>
-<option value = "B-cells">B-cells</option>
-<option value = "B cells">B cells</option>
-<option value = "B Cells">B Cells</option>
-<option value = "Bacteria">Bacteria</option>
-<option value = "Bacterial cells">Bacterial cells</option>
-<option value = "Bacterial Cells">Bacterial Cells</option>
-<option value = "Biofilm">Biofilm</option>
-<option value = "Biopsy">Biopsy</option>
-<option value = "Bladder">Bladder</option>
-<option value = "Blank/QC">Blank/QC</option>
-<option value = "Blastocysts">Blastocysts</option>
-<option value = "Blood">Blood</option>
-<option value = "Blood (plasma)">Blood (plasma)</option>
-<option value = "Blood (plasma) and tumor tissue">Blood (plasma) and tumor tissue</option>
-<option value = "Blood (serum)">Blood (serum)</option>
-<option value = "Blood (serum) and Liver">Blood (serum) and Liver</option>
-<option value = "Blood (whole)">Blood (whole)</option>
-<option value = "Blubber">Blubber</option>
-<option value = "Bone">Bone</option>
-<option value = "Bone and bone marrow">Bone and bone marrow</option>
-<option value = "Bone marrow">Bone marrow</option>
-<option value = "Bone Marrow">Bone Marrow</option>
-<option value = "brain">brain</option>
-<option value = "Brain">Brain</option>
-<option value = "Brain - Cerebral Hemisphere">Brain - Cerebral Hemisphere</option>
-<option value = "Breast">Breast</option>
-<option value = "Breast cancer cells">Breast cancer cells</option>
-<option value = "Breast milk">Breast milk</option>
-<option value = "Breast tissue">Breast tissue</option>
-<option value = "Breath">Breath</option>
-<option value = "Bronchoalveolar lavage">Bronchoalveolar lavage</option>
-<option value = "C. elegans">C. elegans</option>
-<option value = "Cardiomyocyte cells">Cardiomyocyte cells</option>
-<option value = "Cecum">Cecum</option>
-<option value = "Cells">Cells</option>
-<option value = "Cerebral Cortex">Cerebral Cortex</option>
-<option value = "Cerebrospinal fluid">Cerebrospinal fluid</option>
-<option value = "CHO cells">CHO cells</option>
-<option value = "Colon">Colon</option>
-<option value = "Conditioned treatment media">Conditioned treatment media</option>
-<option value = "Coral nubbins">Coral nubbins</option>
-<option value = "Cord Blood">Cord Blood</option>
-<option value = "Cord blood serum">Cord blood serum</option>
-<option value = "Corpus Luteum">Corpus Luteum</option>
-<option value = "Cortex">Cortex</option>
-<option value = "CSF">CSF</option>
-<option value = "Cultured cells">Cultured cells</option>
-<option value = "Cultured diatom cells">Cultured diatom cells</option>
-<option value = "Cultured fibroblasts">Cultured fibroblasts</option>
-<option value = "Cultured human myotubes with Toxoplasma gondii">Cultured human myotubes with Toxoplasma gondii</option>
-<option value = "Cultured plankton cells">Cultured plankton cells</option>
-<option value = "Cultured primary cells">Cultured primary cells</option>
-<option value = "Cultured Prochlorococcus cells and vesicles">Cultured Prochlorococcus cells and vesicles</option>
-<option value = "Cyst fluid">Cyst fluid</option>
-<option value = "Date palm fruit">Date palm fruit</option>
-<option value = "Dendritic cells">Dendritic cells</option>
-<option value = "Diatom cells/Particulate matter from sea ice cores">Diatom cells/Particulate matter from sea ice cores</option>
-<option value = "Diet">Diet</option>
-<option value = "Dorsal root ganglia">Dorsal root ganglia</option>
-<option value = "Dried long pepper">Dried long pepper</option>
-<option value = "Duodenum">Duodenum</option>
-<option value = "Eggs">Eggs</option>
-<option value = "Embryonic cells">Embryonic cells</option>
-<option value = "Endothelial Cells">Endothelial Cells</option>
-<option value = "Epididymal adipose tissue">Epididymal adipose tissue</option>
-<option value = "Epithelial cells">Epithelial cells</option>
-<option value = "Esophagus">Esophagus</option>
-<option value = "Exhaled Breath condensate">Exhaled Breath condensate</option>
-<option value = "Exhaled breath condensate  and  bronchoalveolar lavage fluid">Exhaled breath condensate  and  bronchoalveolar lavage fluid</option>
-<option value = "Eye tissue">Eye tissue</option>
-<option value = "Face">Face</option>
-<option value = "Feces">Feces</option>
-<option value = "Feces; Blood (serum)">Feces; Blood (serum)</option>
-<option value = "Femoral muscle">Femoral muscle</option>
-<option value = "Fibroblast cells">Fibroblast cells</option>
-<option value = "Fibrous root">Fibrous root</option>
-<option value = "Fish larvae">Fish larvae</option>
-<option value = "Flushing">Flushing</option>
-<option value = "Fly">Fly</option>
-<option value = "Follicular fluid">Follicular fluid</option>
-<option value = "Foreskin">Foreskin</option>
-<option value = "Fruit juice">Fruit juice</option>
-<option value = "Fungal cells">Fungal cells</option>
-<option value = "Fungal mycelium">Fungal mycelium</option>
-<option value = "Gastrocnemius">Gastrocnemius</option>
-<option value = "Glioblastoma cells">Glioblastoma cells</option>
-<option value = "Glioma cells">Glioma cells</option>
-<option value = "Head tissue">Head tissue</option>
-<option value = "heart">heart</option>
-<option value = "Heart">Heart</option>
-<option value = "HEK cells">HEK cells</option>
-<option value = "HeLa cells">HeLa cells</option>
-<option value = "Hemolymph">Hemolymph</option>
-<option value = "Hep G2 cells">Hep G2 cells</option>
-<option value = "Hindbrain">Hindbrain</option>
-<option value = "Hippocampus">Hippocampus</option>
-<option value = "Human breast epithelial and adipose tissue">Human breast epithelial and adipose tissue</option>
-<option value = "human cells">human cells</option>
-<option value = "Human Milk">Human Milk</option>
-<option value = "human monocyte-derived macrophages (hMDM)">human monocyte-derived macrophages (hMDM)</option>
-<option value = "Hypothalamus">Hypothalamus</option>
-<option value = "Ileum">Ileum</option>
-<option value = "Insect brain">Insect brain</option>
-<option value = "Insect tissue">Insect tissue</option>
-<option value = "Intestinal lumen contents">Intestinal lumen contents</option>
-<option value = "Intestine">Intestine</option>
-<option value = "Jejunum">Jejunum</option>
-<option value = "Jurkat cells, Clone E6-1">Jurkat cells, Clone E6-1</option>
-<option value = "K562 Cells">K562 Cells</option>
-<option value = "Keratinocytes">Keratinocytes</option>
-<option value = "kidney">kidney</option>
-<option value = "Kidney">Kidney</option>
-<option value = "Kidney cortex">Kidney cortex</option>
-<option value = "kidney epithelial cells">kidney epithelial cells</option>
-<option value = "Larvae">Larvae</option>
-<option value = "Leaf">Leaf</option>
-<option value = "Leaves">Leaves</option>
-<option value = "Leukemia cells">Leukemia cells</option>
-<option value = "liver">liver</option>
-<option value = "Liver">Liver</option>
-<option value = "Liver;Spleen;Gut">Liver;Spleen;Gut</option>
-<option value = "Liver_Brain_Kidney">Liver_Brain_Kidney</option>
-<option value = "LnCap cells">LnCap cells</option>
-<option value = "Lung">Lung</option>
-<option value = "Lung organoids">Lung organoids</option>
-<option value = "Lymphoma cells">Lymphoma cells</option>
-<option value = "Macrophages">Macrophages</option>
-<option value = "Maize kernel">Maize kernel</option>
-<option value = "maize starchy endosperm">maize starchy endosperm</option>
-<option value = "Media">Media</option>
-<option value = "Mesenchymal stromal cells">Mesenchymal stromal cells</option>
-<option value = "Mesenteric lymph">Mesenteric lymph</option>
-<option value = "Milk">Milk</option>
-<option value = "Mitochondria">Mitochondria</option>
-<option value = "Monocytes">Monocytes</option>
-<option value = "Mononuclear cells">Mononuclear cells</option>
-<option value = "Mouse tissues and interstitial fluids">Mouse tissues and interstitial fluids</option>
-<option value = "muscle">muscle</option>
-<option value = "Muscle">Muscle</option>
-<option value = "Muscle and Gonad tissue">Muscle and Gonad tissue</option>
-<option value = "muscle tissue">muscle tissue</option>
-<option value = "Mycelia in media">Mycelia in media</option>
-<option value = "Nasal Polyp tissue">Nasal Polyp tissue</option>
-<option value = "Neurons">Neurons</option>
-<option value = "new">new</option>
-<option value = "Nucleus accumbens">Nucleus accumbens</option>
-<option value = "optic nerve">optic nerve</option>
-<option value = "Optic nerve">Optic nerve</option>
-<option value = "Other (digesta/intestinal contents)">Other (digesta/intestinal contents)</option>
-<option value = "Outer medulla kidney">Outer medulla kidney</option>
-<option value = "Ovarian cancer cells">Ovarian cancer cells</option>
-<option value = "Ovary">Ovary</option>
-<option value = "Pancreas">Pancreas</option>
-<option value = "Pancreatic Islets">Pancreatic Islets</option>
-<option value = "Parasite">Parasite</option>
-<option value = "PDX GBM - mouse brain tumor section">PDX GBM - mouse brain tumor section</option>
-<option value = "Peripheral blood mono-nuclear cells">Peripheral blood mono-nuclear cells</option>
-<option value = "Peritoneal fluid">Peritoneal fluid</option>
-<option value = "Pf infected RBCs">Pf infected RBCs</option>
-<option value = "Photosynthetic organism">Photosynthetic organism</option>
-<option value = "Phytoplankton">Phytoplankton</option>
-<option value = "Placenta">Placenta</option>
-<option value = "Plankton cells">Plankton cells</option>
-<option value = "Plant">Plant</option>
-<option value = "plant root tissue">plant root tissue</option>
-<option value = "Plaque samples">Plaque samples</option>
-<option value = "plasma">plasma</option>
-<option value = "Plasma">Plasma</option>
-<option value = "Plasmodium cells">Plasmodium cells</option>
-<option value = "Platelets">Platelets</option>
-<option value = "Prostate">Prostate</option>
-<option value = "Quadriceps Muscle">Quadriceps Muscle</option>
-<option value = "Rectum">Rectum</option>
-<option value = "Red blood cells">Red blood cells</option>
-<option value = "Renal Tissue">Renal Tissue</option>
-<option value = "retina">retina</option>
-<option value = "Retina">Retina</option>
-<option value = "retinal ganglion cells">retinal ganglion cells</option>
-<option value = "Rice grain">Rice grain</option>
-<option value = "Root">Root</option>
-<option value = "Saccharomyces cerevisiae">Saccharomyces cerevisiae</option>
-<option value = "Saliva">Saliva</option>
-<option value = "Sarcoma">Sarcoma</option>
-<option value = "Scalp">Scalp</option>
-<option value = "Sciatic nerve">Sciatic nerve</option>
-<option value = "Sciatic Nerve">Sciatic Nerve</option>
-<option value = "seawater">seawater</option>
-<option value = "Seaweed">Seaweed</option>
-<option value = "Seedlings">Seedlings</option>
-<option value = "Seeds">Seeds</option>
-<option value = "Serum">Serum</option>
-<option value = "Sewage sludge">Sewage sludge</option>
-<option value = "SI">SI</option>
-<option value = "Skeletal muscle">Skeletal muscle</option>
-<option value = "Skeletal Muscle">Skeletal Muscle</option>
-<option value = "Skeletal Muscle (Gastrocnemius)">Skeletal Muscle (Gastrocnemius)</option>
-<option value = "Skeletal myotubes">Skeletal myotubes</option>
-<option value = "skin">skin</option>
-<option value = "Skin">Skin</option>
-<option value = "Skin Biopsy">Skin Biopsy</option>
-<option value = "Small intestinal fecal contents">Small intestinal fecal contents</option>
-<option value = "Small intestine">Small intestine</option>
-<option value = "Small intestine tissue">Small intestine tissue</option>
-<option value = "Sodium Heparin Plasma">Sodium Heparin Plasma</option>
-<option value = "Spinal cord">Spinal cord</option>
-<option value = "Spleen">Spleen</option>
-<option value = "Sputum">Sputum</option>
-<option value = "Stage 43 tadpoles">Stage 43 tadpoles</option>
-<option value = "Standard phosphadylcholines">Standard phosphadylcholines</option>
-<option value = "Stem cells">Stem cells</option>
-<option value = "Stem cells culture media">Stem cells culture media</option>
-<option value = "Stomach">Stomach</option>
-<option value = "Subcutaneous tumor tissues of pancreatic cancer">Subcutaneous tumor tissues of pancreatic cancer</option>
-<option value = "Suspended Marine Particulate Matter">Suspended Marine Particulate Matter</option>
-<option value = "Sweat">Sweat</option>
-<option value = "Synthetic Mixture">Synthetic Mixture</option>
-<option value = "T-cells">T-cells</option>
-<option value = "T-Cells">T-Cells</option>
-<option value = "Tails">Tails</option>
-<option value = "Testis">Testis</option>
-<option value = "Thyroid">Thyroid</option>
-<option value = "Tissue">Tissue</option>
-<option value = "Tissue and skeleton">Tissue and skeleton</option>
-<option value = "Tissue homogenate">Tissue homogenate</option>
-<option value = "Tongue tissue">Tongue tissue</option>
-<option value = "total bone marrow flush (cells)">total bone marrow flush (cells)</option>
-<option value = "Toxoplasma gondii">Toxoplasma gondii</option>
-<option value = "Tumor cells">Tumor cells</option>
-<option value = "Ulcer biopsies">Ulcer biopsies</option>
-<option value = "Umbilical cord plasma">Umbilical cord plasma</option>
-<option value = "Unspecifed">Unspecifed</option>
-<option value = "Unspecified">Unspecified</option>
-<option value = "Urine">Urine</option>
-<option value = "Uterine fluid">Uterine fluid</option>
-<option value = "uterine flushing">uterine flushing</option>
-<option value = "Uterus">Uterus</option>
-<option value = "Vaginal epithelium">Vaginal epithelium</option>
-<option value = "Vitreous">Vitreous</option>
-<option value = "Wastewater">Wastewater</option>
-<option value = "White adipose tissue">White adipose tissue</option>
-<option value = "Whole Animal">Whole Animal</option>
-<option value = "Whole animals">Whole animals</option>
-<option value = "Whole bodies">Whole bodies</option>
-<option value = "Whole insect">Whole insect</option>
-<option value = "Whole Plant">Whole Plant</option>
-<option value = "Whole Tissue">Whole Tissue</option>
-<option value = "Whole worm extract">Whole worm extract</option>
-<option value = "Wine">Wine</option>
-<option value = "Worms">Worms</option>
-<option value = "Yeast cells">Yeast cells</option>
+    <option value="NA">Select anatomy/Sample source</option>
+    <?php include(__DIR__ . "/ssdm_sample_source_pulldown_menu.html"); ?>
 </select>
 </center>
 </td>
@@ -434,7 +189,7 @@ Select anatomy/Sample source
 </table>
 
 <br><br>
-<span class="btn" id="submit_form">Submit</span>
+<button id="submit_form">Submit</button>
 
 </form>
 
