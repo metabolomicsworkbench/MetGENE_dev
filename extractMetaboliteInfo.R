@@ -404,8 +404,8 @@ if (length(args) < 5) {
 
 species_raw <- args[1]
 geneStr_raw <- args[2]
-anatomy_raw <- args[3]
-disease_raw <- args[4]
+anatomy_raw <- clean_php_input(args[3])
+disease_raw <- clean_php_input(args[4])
 viewType_raw <- args[5]
 
 # SECURITY: Wrap in tryCatch for error handling

@@ -523,6 +523,19 @@ validate_anatomy <- function(anatomy_raw, allowed_anatomy = character(0)) {
     ""
 }
 # ====================================================================
+# Clean + and url encoders from PHP 
+# ====================================================================
+# Create a quick cleaning function
+clean_php_input <- function(text) {
+    # 1. Replace the "+" with a space (Handles urlencode)
+    text <- gsub("+", " ", text, fixed = TRUE)
+
+    # 2. Decode any standard URL encoding like %20 (Handles rawurlencode)
+    text <- URLdecode(text)
+
+    return(text)
+}
+# ====================================================================
 # SPECIES NAME FORMATTING
 # ====================================================================
 # --------------------------------------------------------------------

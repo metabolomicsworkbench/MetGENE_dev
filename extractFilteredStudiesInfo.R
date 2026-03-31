@@ -390,8 +390,8 @@ if (length(args) < 5) {
 
 species <- args[1]
 geneArrayStr <- args[2]
-diseaseStr <- args[3]
-anatomyStr <- args[4]
+diseaseStr <- clean_php_input(args[3])
+anatomyStr <- clean_php_input(args[4])
 viewTypeStr <- args[5]
 
 # SECURITY: Parse and validate gene array

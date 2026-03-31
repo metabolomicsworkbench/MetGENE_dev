@@ -302,7 +302,7 @@ getGeneSummaryInfoTableWithKeggQuery <- function(orgStr, geneIDArray, geneSymArr
   ## Do not unique here since NA will be uniqued
   symbolStrArray <- as.vector(strsplit(geneSymArray, split = "__", fixed = TRUE)[[1]])
   geneArray <- as.vector(strsplit(geneIDArray, split = "__", fixed = TRUE)[[1]])
-
+  
   # SECURITY FIX: Prevent DoS by limiting number of genes
   MAX_GENES <- 100
   if (length(geneArray) > MAX_GENES) {
@@ -363,8 +363,9 @@ getGeneSummaryInfoTableWithKeggQuery <- function(orgStr, geneIDArray, geneSymArr
 
     geneStudyCnt <- 0
     allStudies <- c() # to collect all studies across metabolites
-
+    
     if (length(metabList) > 0) {
+      
       for (m in 1:length(metabList)) {
         metabStr <- metabList[[m]]
 
@@ -378,19 +379,18 @@ getGeneSummaryInfoTableWithKeggQuery <- function(orgStr, geneIDArray, geneSymArr
         diseaseQryStr <- disease
         # https://metabolomicsworkbench.org/rest/metstat/;;;human;Fibroblast%20cells;;C00031 works
         # but https://metabolomicsworkbench.org/rest/metstat/;;;human;Fibroblast+cells;;C00031 does not
-        # PHP encodes space to + so we have to replace it by %20
-        pat_str <- "\\+"
-        rep_str <- "%20"
-        if (!is_empty(anatomy) && length(anatomy) > 0 && str_detect(anatomy, pat_str)) {
-          anatomyQryStr <- str_replace_all(anatomy, pat_str, rep_str)
+        # We have cleaned + and here we can use URLencode
+        # A clean, vectorized approach using base R's URLencode
+        if (!is_empty(anatomy) && length(anatomy) > 0) {
+          anatomyQryStr <- URLencode(anatomy)
         }
 
-        if (!is_empty(disease) && length(disease) > 0 && str_detect(disease, pat_str)) {
-          diseaseQryStr <- str_replace_all(disease, pat_str, rep_str)
+        if (!is_empty(disease) && length(disease) > 0) {
+          diseaseQryStr <- URLencode(disease)
         }
 
         path <- paste0("https://www.metabolomicsworkbench.org/rest/metstat/;;;", organism_name, ";", anatomyQryStr, ";", diseaseQryStr, ";", metabStr)
-
+        
         # SECURITY FIX: Add error handling for external API call
         jslist <- tryCatch(
           {
@@ -618,8 +618,8 @@ filename <- args[4]
 viewType_raw <- args[5]
 
 # Optional arguments
-anatomy_raw <- ifelse(length(args) >= 6, args[6], "")
-disease_raw <- ifelse(length(args) >= 7, args[7], "")
+anatomy_raw <- clean_php_input(ifelse(length(args) >= 6, args[6], ""))
+disease_raw <- clean_php_input(ifelse(length(args) >= 7, args[7], ""))
 
 # ============================================================================
 # SECURITY: Input Validation using metgene_common.R functions
