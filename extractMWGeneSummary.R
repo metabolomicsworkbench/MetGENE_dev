@@ -153,8 +153,29 @@ plotSummary <- function(countMatrix, genesCnt, symbolStrArray, organism_name, pa
   currDir <- sub('.*href="([^"]+)/[^/]+\\.php.*', "\\1", pathwaysLinkStr)
 
   if (nrow(countMatrix) == 0) {
+    return(cat(paste0("<h3> No summaries found in Metabolomics Workbench for the specified genes.</h3>")))
+  }
+
+  # Identify genes with all zero counts
+  row_sums <- rowSums(countMatrix)
+  zero_indices <- row_sums == 0
+  non_zero_indices <- row_sums > 0
+  zero_genes <- symbolStrArray[zero_indices]
+
+  if (length(zero_genes) > 0) {
+    zero_list <- paste(zero_genes, collapse = ", ")
+    cat(paste0("<h3>No summaries found for genes: ", zero_list, "</h3>"))
+  }
+
+  # Filter to non-zero genes for plotting
+  countMatrix <- countMatrix[non_zero_indices, , drop = FALSE]
+  symbolStrArray <- symbolStrArray[non_zero_indices]
+  genesCnt <- length(symbolStrArray)
+
+  if (genesCnt == 0) {
     return(cat(paste0("<p> No summaries found in Metabolomics Workbench for the specified genes.</p>")))
   }
+
   categories <- c(rep("Pathways", genesCnt), rep("Reactions", genesCnt), rep("Metabolites", genesCnt), rep("Studies", genesCnt))
   Genes <- rep(as.vector(symbolStrArray), 4)
   values <- as.vector(countMatrix)
@@ -302,7 +323,7 @@ getGeneSummaryInfoTableWithKeggQuery <- function(orgStr, geneIDArray, geneSymArr
   ## Do not unique here since NA will be uniqued
   symbolStrArray <- as.vector(strsplit(geneSymArray, split = "__", fixed = TRUE)[[1]])
   geneArray <- as.vector(strsplit(geneIDArray, split = "__", fixed = TRUE)[[1]])
-  
+
   # SECURITY FIX: Prevent DoS by limiting number of genes
   MAX_GENES <- 100
   if (length(geneArray) > MAX_GENES) {
@@ -363,9 +384,8 @@ getGeneSummaryInfoTableWithKeggQuery <- function(orgStr, geneIDArray, geneSymArr
 
     geneStudyCnt <- 0
     allStudies <- c() # to collect all studies across metabolites
-    
+
     if (length(metabList) > 0) {
-      
       for (m in 1:length(metabList)) {
         metabStr <- metabList[[m]]
 
@@ -390,7 +410,7 @@ getGeneSummaryInfoTableWithKeggQuery <- function(orgStr, geneIDArray, geneSymArr
         }
 
         path <- paste0("https://www.metabolomicsworkbench.org/rest/metstat/;;;", organism_name, ";", anatomyQryStr, ";", diseaseQryStr, ";", metabStr)
-        
+
         # SECURITY FIX: Add error handling for external API call
         jslist <- tryCatch(
           {

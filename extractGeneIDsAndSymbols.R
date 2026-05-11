@@ -18,6 +18,7 @@ safe_url <- function(domain, species, geneType, genes) {
     "localhost",
     "127.0.0.1",
     "sc-cfdewebdev.sdsc.edu",
+    "sc-cfdeweb.sdsc.edu",
     "www.metabolomicsworkbench.org",
     "metabolomicsworkbench.org",
     "bdcw.org",

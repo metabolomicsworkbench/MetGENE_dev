@@ -318,7 +318,12 @@ if (
                         echo "<pre>";
                         echo $htmlbuff;
                         echo "</pre>";
-                        echo "<br>";
+                        if (empty($htmlbuff)) {
+                            $msg = "<h3>No metabolites information found for <i><b>" . escapeHtml($organism_name) . "</b></i> gene <i><b>" . escapeHtml($geneSymbolStr) . "</b></i></h3><br>\n";
+                            echo $msg;
+                        } else {
+                            echo "<br>";
+                        }
                     } else {
                         error_log("R script extractMetaboliteInfo.R failed for gene $gene_id with exit code: $retvar");
                         $msg = "<h3><i>Error running metabolite extraction for <b>"

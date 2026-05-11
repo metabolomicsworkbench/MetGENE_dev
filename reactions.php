@@ -317,7 +317,7 @@ if (
                             echo "</pre><br>\n";
                         } else {
                             error_log("R script extractReactionInfo.R failed for gene $value with exit code: $retvar");
-                            $err = '<h3>Error running reaction extraction for <i><b>' .
+                            $err = '<h3>No reaction information found for <i><b>' .
                                    escapeHtml($org_name) .
                                    '</b></i> gene <i><b>' .
                                    escapeHtml($gene_symbol_str) .

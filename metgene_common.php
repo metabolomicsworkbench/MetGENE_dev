@@ -55,11 +55,12 @@ if (!function_exists('dbg')) {
 
 function sendSecurityHeaders(): void
 {
-    header("X-Frame-Options: SAMEORIGIN");
+    #header("X-Frame-Options: SAMEORIGIN"); // commented, else cannot embed in Workflow builder tool (https://playbook-workflow-builder.cloud)
     header("X-Content-Type-Options: nosniff");
     header("Referrer-Policy: no-referrer-when-downgrade");
     header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
 
+    # Added https://playbook-workflow-builder.cloud to frame-ancestors below
     header(
         "Content-Security-Policy: " .
         "default-src 'self'; " .
@@ -67,7 +68,7 @@ function sendSecurityHeaders(): void
         "style-src 'self' 'unsafe-inline'; " .
         "img-src 'self' data:; " .
         "object-src 'none'; " .
-        "frame-ancestors 'self';"
+        "frame-ancestors 'self' https://playbook-workflow-builder.cloud;"
     );
 }
 

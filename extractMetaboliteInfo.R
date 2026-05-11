@@ -367,7 +367,6 @@ getMetaboliteInfoTable <- function(species_raw,
   # HTML table output
   if (nrow(metabRxnList) == 0) {
     # No results - return empty table or message
-    cat("<p>No metabolites found for this gene.</p>")
     return(invisible(NULL))
   }
 
