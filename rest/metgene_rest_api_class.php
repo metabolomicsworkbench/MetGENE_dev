@@ -504,7 +504,8 @@ class API extends REST {
             fclose($jsonfile);
             
             // Return relative URL path
-            $base_dir = getBaseDirName();
+            $base_dir = getBaseDirName(); # In the rest folder, this still has /rest at the end, so, remove it using the line below
+            $base_dir = preg_replace('/\/rest$/', '', $base_dir);
             $relative_path = str_replace(__DIR__ . '/../', '', $jsonmetfilename);
             $url_value = "https://" . ($_SERVER['SERVER_NAME'] ?? 'localhost') . 
                         $base_dir . "/" . $relative_path;

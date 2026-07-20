@@ -49,6 +49,14 @@
       "id_name_for_menu": "Cardiovascular disease (NA), Name in MW: Cardiovascular disease"
     },
     {
+      "disease_name_lc": "cardiovascular disease",
+      "disease_name": "Cardiovascular Disease",
+      "disease": null,
+      "disease_class": "Cardiovascular disorder",
+      "disease_name_correct": "Cardiovascular Disease",
+      "id_name_for_menu": "Cardiovascular Disease (NA), Name in MW: Cardiovascular Disease"
+    },
+    {
       "disease_name_lc": "heart disease",
       "disease_name": "Heart disease",
       "disease": "DOID:114",
@@ -79,6 +87,14 @@
       "disease_class": "Cardiovascular disorder",
       "disease_name_correct": "ischemia",
       "id_name_for_menu": "ischemia (DOID:326), Name in MW: Ischemia"
+    },
+    {
+      "disease_name_lc": "myocardial infarction",
+      "disease_name": "Myocardial infarction",
+      "disease": "DOID:5844",
+      "disease_class": "Cardiovascular disorder",
+      "disease_name_correct": "myocardial infarction",
+      "id_name_for_menu": "myocardial infarction (DOID:5844), Name in MW: Myocardial infarction"
     },
     {
       "disease_name_lc": "peripheral artery disease",
@@ -122,6 +138,22 @@
     }
   ],
   "Dental disorder": [
+    {
+      "disease_name_lc": "dental disease",
+      "disease_name": "Dental disease",
+      "disease": null,
+      "disease_class": "Dental disorder",
+      "disease_name_correct": "Dental disease",
+      "id_name_for_menu": "Dental disease (NA), Name in MW: Dental disease"
+    },
+    {
+      "disease_name_lc": "gingivitis",
+      "disease_name": "Gingivitis",
+      "disease": "DOID:3087",
+      "disease_class": "Dental disorder",
+      "disease_name_correct": "gingivitis",
+      "id_name_for_menu": "gingivitis (DOID:3087), Name in MW: Gingivitis"
+    },
     {
       "disease_name_lc": "periodontal disease",
       "disease_name": "Periodontal disease",
@@ -177,6 +209,14 @@
   ],
   "Endocrine disorder": [
     {
+      "disease_name_lc": "congenital hypothyroidism",
+      "disease_name": "Congenital hypothyroidism",
+      "disease": "DOID:0050328",
+      "disease_class": "Endocrine disorder",
+      "disease_name_correct": "congenital hypothyroidism",
+      "id_name_for_menu": "congenital hypothyroidism (DOID:0050328), Name in MW: Congenital hypothyroidism"
+    },
+    {
       "disease_name_lc": "hypercortisolemia",
       "disease_name": "Hypercortisolemia",
       "disease": null,
@@ -203,12 +243,28 @@
   ],
   "Environmental disorder": [
     {
+      "disease_name_lc": "altitude sickness",
+      "disease_name": "Altitude sickness",
+      "disease": null,
+      "disease_class": "Environmental disorder",
+      "disease_name_correct": "Altitude sickness",
+      "id_name_for_menu": "Altitude sickness (NA), Name in MW: Altitude sickness"
+    },
+    {
       "disease_name_lc": "environmental exposure",
       "disease_name": "Environmental exposure",
       "disease": null,
       "disease_class": "Environmental disorder",
       "disease_name_correct": "Environmental exposure",
       "id_name_for_menu": "Environmental exposure (NA), Name in MW: Environmental exposure"
+    },
+    {
+      "disease_name_lc": "environmental stress",
+      "disease_name": "Environmental stress",
+      "disease": null,
+      "disease_class": "Environmental disorder",
+      "disease_name_correct": "Environmental stress",
+      "id_name_for_menu": "Environmental stress (NA), Name in MW: Environmental stress"
     },
     {
       "disease_name_lc": "heat stroke",
@@ -279,6 +335,14 @@
       "id_name_for_menu": "Enterocolitis (NA), Name in MW: Enterocolitis"
     },
     {
+      "disease_name_lc": "gallstones",
+      "disease_name": "Gallstones",
+      "disease": null,
+      "disease_class": "Gastrointestinal disorder",
+      "disease_name_correct": "Gallstones",
+      "id_name_for_menu": "Gallstones (NA), Name in MW: Gallstones"
+    },
+    {
       "disease_name_lc": "gastrointestinal disease",
       "disease_name": "Gastrointestinal disease",
       "disease": "DOID:77",
@@ -317,6 +381,14 @@
       "disease_class": "Gastrointestinal disorder",
       "disease_name_correct": "ulcerative colitis",
       "id_name_for_menu": "ulcerative colitis (DOID:8577), Name in MW: Ulcerative colitis"
+    },
+    {
+      "disease_name_lc": "ulcerative colitis",
+      "disease_name": "Ulcerative Colitis",
+      "disease": "DOID:8577",
+      "disease_class": "Gastrointestinal disorder",
+      "disease_name_correct": "ulcerative colitis",
+      "id_name_for_menu": "ulcerative colitis (DOID:8577), Name in MW: Ulcerative Colitis"
     }
   ],
   "Genetic disorder": [
@@ -359,6 +431,14 @@
       "disease_class": "Genetic disorder",
       "disease_name_correct": "Mitochondrial disease",
       "id_name_for_menu": "Mitochondrial disease (NA), Name in MW: Mitochondrial disease"
+    },
+    {
+      "disease_name_lc": "thalassemia",
+      "disease_name": "Thalassemia",
+      "disease": "DOID:10241",
+      "disease_class": "Genetic disorder",
+      "disease_name_correct": "thalassemia",
+      "id_name_for_menu": "thalassemia (DOID:10241), Name in MW: Thalassemia"
     },
     {
       "disease_name_lc": "tuberous sclerosis",
@@ -503,6 +583,14 @@
       "id_name_for_menu": "graft-versus-host disease (DOID:0081267), Name in MW: Graft versus host disease"
     },
     {
+      "disease_name_lc": "immune system disease",
+      "disease_name": "Immune system disease",
+      "disease": "DOID:2914",
+      "disease_class": "Immune disorder",
+      "disease_name_correct": "immune system disease",
+      "id_name_for_menu": "immune system disease (DOID:2914), Name in MW: Immune system disease"
+    },
+    {
       "disease_name_lc": "immune system disorders",
       "disease_name": "Immune system disorders",
       "disease": null,
@@ -595,6 +683,22 @@
       "id_name_for_menu": "bacterial infectious disease (DOID:104), Name in MW: Bacterial infection"
     },
     {
+      "disease_name_lc": "bacterial vaginosis",
+      "disease_name": "Bacterial Vaginosis",
+      "disease": "DOID:3385",
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "bacterial vaginosis",
+      "id_name_for_menu": "bacterial vaginosis (DOID:3385), Name in MW: Bacterial Vaginosis"
+    },
+    {
+      "disease_name_lc": "chronic rhinosinusitis",
+      "disease_name": "Chronic rhinosinusitis",
+      "disease": null,
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "Chronic rhinosinusitis",
+      "id_name_for_menu": "Chronic rhinosinusitis (NA), Name in MW: Chronic rhinosinusitis"
+    },
+    {
       "disease_name_lc": "coccidioidomycosis",
       "disease_name": "Coccidioidomycosis",
       "disease": "DOID:13450",
@@ -617,6 +721,14 @@
       "disease_class": "Infectious disease",
       "disease_name_correct": "dengue disease",
       "id_name_for_menu": "dengue disease (DOID:12205), Name in MW: Dengue"
+    },
+    {
+      "disease_name_lc": "dengue fever",
+      "disease_name": "Dengue Fever",
+      "disease": "DOID:12205",
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "dengue disease",
+      "id_name_for_menu": "dengue disease (DOID:12205), Name in MW: Dengue Fever"
     },
     {
       "disease_name_lc": "endotoxemia",
@@ -787,12 +899,36 @@
       "id_name_for_menu": "parasitic infectious disease (DOID:1398), Name in MW: Parasitic infection"
     },
     {
+      "disease_name_lc": "parasitic infestation",
+      "disease_name": "Parasitic infestation",
+      "disease": null,
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "Parasitic infestation",
+      "id_name_for_menu": "Parasitic infestation (NA), Name in MW: Parasitic infestation"
+    },
+    {
+      "disease_name_lc": "powdery scab",
+      "disease_name": "Powdery Scab",
+      "disease": null,
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "Powdery Scab",
+      "id_name_for_menu": "Powdery Scab (NA), Name in MW: Powdery Scab"
+    },
+    {
       "disease_name_lc": "salmonella",
       "disease_name": "Salmonella",
       "disease": null,
       "disease_class": "Infectious disease",
       "disease_name_correct": "Salmonella",
       "id_name_for_menu": "Salmonella (NA), Name in MW: Salmonella"
+    },
+    {
+      "disease_name_lc": "schistosomiasis",
+      "disease_name": "Schistosomiasis",
+      "disease": "DOID:1395",
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "schistosomiasis",
+      "id_name_for_menu": "schistosomiasis (DOID:1395), Name in MW: Schistosomiasis"
     },
     {
       "disease_name_lc": "scrapie",
@@ -817,6 +953,14 @@
       "disease_class": "Infectious disease",
       "disease_name_correct": "Septic shock",
       "id_name_for_menu": "Septic shock (NA), Name in MW: Septic shock"
+    },
+    {
+      "disease_name_lc": "simian immunodeficiency virus (siv) infection",
+      "disease_name": "Simian Immunodeficiency Virus (SIV) infection",
+      "disease": null,
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "Simian Immunodeficiency Virus (SIV) infection",
+      "id_name_for_menu": "Simian Immunodeficiency Virus (SIV) infection (NA), Name in MW: Simian Immunodeficiency Virus (SIV) infection"
     },
     {
       "disease_name_lc": "sleeping sickness",
@@ -875,6 +1019,14 @@
       "id_name_for_menu": "viral infectious disease (DOID:934), Name in MW: Viral infection"
     },
     {
+      "disease_name_lc": "visceral leishmaniasis",
+      "disease_name": "Visceral leishmaniasis",
+      "disease": "DOID:9146",
+      "disease_class": "Infectious disease",
+      "disease_name_correct": "visceral leishmaniasis",
+      "id_name_for_menu": "visceral leishmaniasis (DOID:9146), Name in MW: Visceral leishmaniasis"
+    },
+    {
       "disease_name_lc": "white-nose syndrome",
       "disease_name": "White-nose syndrome",
       "disease": null,
@@ -929,6 +1081,14 @@
       "id_name_for_menu": "alkaptonuria (DOID:9270), Name in MW: Alkaptonuria"
     },
     {
+      "disease_name_lc": "bile acid disorder",
+      "disease_name": "Bile Acid Disorder",
+      "disease": null,
+      "disease_class": "Metabolic disorder",
+      "disease_name_correct": "Bile Acid Disorder",
+      "id_name_for_menu": "Bile Acid Disorder (NA), Name in MW: Bile Acid Disorder"
+    },
+    {
       "disease_name_lc": "diabetes",
       "disease_name": "Diabetes",
       "disease": "DOID:9351",
@@ -951,6 +1111,14 @@
       "disease_class": "Metabolic disorder",
       "disease_name_correct": "hyperglycemia",
       "id_name_for_menu": "hyperglycemia (DOID:4195), Name in MW: Hyperglycemia"
+    },
+    {
+      "disease_name_lc": "hyperinsulinemia",
+      "disease_name": "Hyperinsulinemia",
+      "disease": "DOID:2018",
+      "disease_class": "Metabolic disorder",
+      "disease_name_correct": "hyperinsulinism",
+      "id_name_for_menu": "hyperinsulinism (DOID:2018), Name in MW: Hyperinsulinemia"
     },
     {
       "disease_name_lc": "hyperlipidemia",
@@ -1075,6 +1243,14 @@
       "disease_class": "Musculoskeletal disorder",
       "disease_name_correct": "muscular atrophy",
       "id_name_for_menu": "muscular atrophy (DOID:767), Name in MW: Muscle atrophy"
+    },
+    {
+      "disease_name_lc": "muscular disease",
+      "disease_name": "Muscular disease",
+      "disease": "DOID:0080000",
+      "disease_class": "Musculoskeletal disorder",
+      "disease_name_correct": "muscular disease",
+      "id_name_for_menu": "muscular disease (DOID:0080000), Name in MW: Muscular disease"
     },
     {
       "disease_name_lc": "muscular dystrophy",
@@ -1249,6 +1425,14 @@
       "id_name_for_menu": "Huntington's disease (DOID:12858), Name in MW: Huntingtons disease"
     },
     {
+      "disease_name_lc": "hypoxic ischemic encephalopathy",
+      "disease_name": "Hypoxic ischemic encephalopathy",
+      "disease": null,
+      "disease_class": "Neurological disorder",
+      "disease_name_correct": "Hypoxic ischemic encephalopathy",
+      "id_name_for_menu": "Hypoxic ischemic encephalopathy (NA), Name in MW: Hypoxic ischemic encephalopathy"
+    },
+    {
       "disease_name_lc": "mild cognitive impairment",
       "disease_name": "Mild Cognitive Impairment",
       "disease": "DOID:0080832",
@@ -1265,12 +1449,28 @@
       "id_name_for_menu": "multiple sclerosis (DOID:2377), Name in MW: Multiple sclerosis"
     },
     {
+      "disease_name_lc": "nervous system disease",
+      "disease_name": "Nervous system disease",
+      "disease": "DOID:863",
+      "disease_class": "Neurological disorder",
+      "disease_name_correct": "nervous system disease",
+      "id_name_for_menu": "nervous system disease (DOID:863), Name in MW: Nervous system disease"
+    },
+    {
       "disease_name_lc": "neurodegenerative disease",
       "disease_name": "Neurodegenerative disease",
       "disease": "DOID:1289",
       "disease_class": "Neurological disorder",
       "disease_name_correct": "neurodegenerative disease",
       "id_name_for_menu": "neurodegenerative disease (DOID:1289), Name in MW: Neurodegenerative disease"
+    },
+    {
+      "disease_name_lc": "neurodevelopment disorder",
+      "disease_name": "Neurodevelopment Disorder",
+      "disease": null,
+      "disease_class": "Neurological disorder",
+      "disease_name_correct": "Neurodevelopment Disorder",
+      "id_name_for_menu": "Neurodevelopment Disorder (NA), Name in MW: Neurodevelopment Disorder"
     },
     {
       "disease_name_lc": "neurological disorder",
@@ -1303,6 +1503,14 @@
       "disease_class": "Neurological disorder",
       "disease_name_correct": "prion disease",
       "id_name_for_menu": "prion disease (DOID:649), Name in MW: Prion disease"
+    },
+    {
+      "disease_name_lc": "sleep disorder",
+      "disease_name": "Sleep Disorder",
+      "disease": "DOID:535",
+      "disease_class": "Neurological disorder",
+      "disease_name_correct": "sleep disorder",
+      "id_name_for_menu": "sleep disorder (DOID:535), Name in MW: Sleep Disorder"
     },
     {
       "disease_name_lc": "spinal cord injury",
@@ -1439,14 +1647,6 @@
       "id_name_for_menu": "Clubroot disease (NA), Name in MW: Clubroot disease"
     },
     {
-      "disease_name_lc": "cultured cells",
-      "disease_name": "Cultured cells",
-      "disease": null,
-      "disease_class": "Other",
-      "disease_name_correct": "Cultured cells",
-      "id_name_for_menu": "Cultured cells (NA), Name in MW: Cultured cells"
-    },
-    {
       "disease_name_lc": "dental erosion",
       "disease_name": "Dental erosion",
       "disease": null,
@@ -1487,6 +1687,14 @@
       "id_name_for_menu": "Fibrosis (NA), Name in MW: Fibrosis"
     },
     {
+      "disease_name_lc": "fibrotic disease",
+      "disease_name": "Fibrotic disease",
+      "disease": null,
+      "disease_class": "Other",
+      "disease_name_correct": "Fibrotic disease",
+      "id_name_for_menu": "Fibrotic disease (NA), Name in MW: Fibrotic disease"
+    },
+    {
       "disease_name_lc": "halitosis",
       "disease_name": "Halitosis",
       "disease": null,
@@ -1511,28 +1719,12 @@
       "id_name_for_menu": "Inflammation (NA), Name in MW: Inflammation"
     },
     {
-      "disease_name_lc": "lipid peroxidation",
-      "disease_name": "Lipid peroxidation",
-      "disease": null,
-      "disease_class": "Other",
-      "disease_name_correct": "Lipid peroxidation",
-      "id_name_for_menu": "Lipid peroxidation (NA), Name in MW: Lipid peroxidation"
-    },
-    {
       "disease_name_lc": "maternal hypoxemia",
       "disease_name": "Maternal Hypoxemia",
       "disease": null,
       "disease_class": "Other",
       "disease_name_correct": "Maternal Hypoxemia",
       "id_name_for_menu": "Maternal Hypoxemia (NA), Name in MW: Maternal Hypoxemia"
-    },
-    {
-      "disease_name_lc": "mouth disease",
-      "disease_name": "Mouth disease",
-      "disease": "DOID:403",
-      "disease_class": "Other",
-      "disease_name_correct": "mouth disease",
-      "id_name_for_menu": "mouth disease (DOID:403), Name in MW: Mouth disease"
     },
     {
       "disease_name_lc": "organ transplantation",
@@ -1601,12 +1793,12 @@
   ],
   "Otological disorder": [
     {
-      "disease_name_lc": "ear disease",
-      "disease_name": "Ear disease",
+      "disease_name_lc": "sudden sensorineural hearing loss",
+      "disease_name": "Sudden sensorineural hearing loss",
       "disease": null,
       "disease_class": "Otological disorder",
-      "disease_name_correct": "Ear disease",
-      "id_name_for_menu": "Ear disease (NA), Name in MW: Ear disease"
+      "disease_name_correct": "Sudden sensorineural hearing loss",
+      "id_name_for_menu": "Sudden sensorineural hearing loss (NA), Name in MW: Sudden sensorineural hearing loss"
     }
   ],
   "Psychological disorder": [
@@ -1625,6 +1817,14 @@
       "disease_class": "Psychological disorder",
       "disease_name_correct": "alcohol dependence",
       "id_name_for_menu": "alcohol dependence (DOID:0050741), Name in MW: Alcoholism"
+    },
+    {
+      "disease_name_lc": "anorexia",
+      "disease_name": "Anorexia",
+      "disease": "DOID:8689",
+      "disease_class": "Psychological disorder",
+      "disease_name_correct": "anorexia nervosa",
+      "id_name_for_menu": "anorexia nervosa (DOID:8689), Name in MW: Anorexia"
     },
     {
       "disease_name_lc": "anorexia nervosa",
@@ -1759,6 +1959,14 @@
       "disease_class": "Reproductive system disorder/Disease of pregnancy",
       "disease_name_correct": "placental abruption",
       "id_name_for_menu": "placental abruption (DOID:9667), Name in MW: Placental Abruption"
+    },
+    {
+      "disease_name_lc": "pprom",
+      "disease_name": "PPROM",
+      "disease": "DOID:0111144",
+      "disease_class": "Reproductive system disorder/Disease of pregnancy",
+      "disease_name_correct": "preterm premature rupture of the membranes",
+      "id_name_for_menu": "preterm premature rupture of the membranes (DOID:0111144), Name in MW: PPROM"
     }
   ],
   "Respiratory disorder": [
@@ -1809,6 +2017,14 @@
       "disease_class": "Respiratory disorder",
       "disease_name_correct": "Pulmonary disease",
       "id_name_for_menu": "Pulmonary disease (NA), Name in MW: Pulmonary disease"
+    },
+    {
+      "disease_name_lc": "pulmonary fibrosis",
+      "disease_name": "Pulmonary Fibrosis",
+      "disease": "DOID:3770",
+      "disease_class": "Respiratory disorder",
+      "disease_name_correct": "pulmonary fibrosis",
+      "id_name_for_menu": "pulmonary fibrosis (DOID:3770), Name in MW: Pulmonary Fibrosis"
     },
     {
       "disease_name_lc": "sleep apnea",
